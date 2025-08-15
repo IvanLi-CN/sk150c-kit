@@ -1,0 +1,46 @@
+# Rust 构建产物
+debug/
+target/
+Cargo.lock
+
+# IDE 配置
+/.idea
+.vscode/settings.json.bak
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# FreeCAD 备份文件
+*.FCBak
+*.FCStd1
+
+# 临时文件
+*.tmp
+*.temp
+*~
+
+# 日志文件
+*.log
+
+# 编译器输出
+*.o
+*.so
+*.dylib
+*.dll
+
+# 调试文件
+*.pdb
+
+# 文档生成
+/doc/
+
+# 测试覆盖率
+/coverage/
+
+# 环境变量文件
+.env
+.env.local
+
+# 中文文档（保留本地，不提交到开源仓库）
+*.zh.md

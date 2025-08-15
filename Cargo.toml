@@ -1,0 +1,97 @@
+[package]
+name = "sk150c-kit"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ivan Li"]
+license = "MIT"
+description = "SK150C adjustable power supply module control firmware for STM32G431CBU6"
+repository = "https://github.com/your-username/sk150c-kit"
+keywords = ["embedded", "stm32", "usb-pd", "power-supply", "no-std"]
+categories = ["embedded", "hardware-support"]
+
+[dependencies]
+defmt = "1.0.1"
+defmt-rtt = "1.0.0"
+panic-probe = { version = "1.0.0", features = ["print-defmt"] }
+
+cortex-m = { version = "^0.7.7", features = ["critical-section-single-core"] }
+cortex-m-rt = "0.7.5"
+
+# Change this import as required for your MCU.
+
+embassy-embedded-hal = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f", features = ["defmt"] }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f", features = [
+  "arch-cortex-m",
+  "executor-thread",
+  "defmt",
+] }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f" }
+embassy-stm32 = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f", features = [
+  "defmt",
+  "time-driver-any",
+  "stm32g431cb",
+  "memory-x",
+  "unstable-pac",
+  "exti",
+] }
+embassy-sync = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f", features = ["defmt"] }
+embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f", features = [
+  "defmt",
+  "defmt-timestamp-uptime",
+  "tick-hz-32_768",
+] }
+embassy-usb = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f", features = ["defmt"] }
+
+embedded-hal = "1.0.0"
+embedded-hal-async = "1.0.0"
+embedded-hal-bus = "0.3.0"
+embedded-io-async = { version = "0.6.1" }
+embedded-alloc = "0.6.0"
+
+portable-atomic = { version = "1.11.0" }
+ryu = "1.0.20"
+static_cell = "2.1.0"
+usbpd = { version = "0.2.1", features = ["defmt"] }
+
+uom = { version = "0.36.0", default-features = false, features = ["si"] }
+
+
+# cargo build/run
+[profile.dev]
+codegen-units = 1
+debug = 0               # 完全关闭调试信息
+debug-assertions = false # 关闭调试断言以减少代码大小
+incremental = false
+opt-level = "z"         # 优化代码大小
+overflow-checks = false # 关闭溢出检查
+lto = "fat"             # 启用完整链接时优化
+panic = "abort"         # 使用 abort 而不是 unwind
+
+# cargo test
+[profile.test]
+codegen-units = 1
+debug = 2
+debug-assertions = true # <-
+incremental = false
+opt-level = 3           # <-
+overflow-checks = true  # <-
+
+# cargo build/run --release
+[profile.release]
+codegen-units = 1
+debug = 2
+debug-assertions = false # <-
+incremental = false
+lto = 'fat'
+opt-level = 3            # <-
+overflow-checks = false  # <-
+
+# cargo test --release
+[profile.bench]
+codegen-units = 1
+debug = 2
+debug-assertions = false # <-
+incremental = false
+lto = 'fat'
+opt-level = 3            # <-
+overflow-checks = false  # <-
