@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 use core::{marker::PhantomData, usize};
-use defmt::{error, info, warn, Format};
+use defmt::{info, warn, Format};
 use embassy_futures::select::{select, Either};
 use embassy_stm32::{
     interrupt,
@@ -20,7 +20,7 @@ use uom::si::{
 };
 use usbpd::{
     protocol_layer::message::{
-        pdo::{Augmented, PowerDataObject, SourceCapabilities, SprProgrammablePowerSupply},
+        pdo::SourceCapabilities,
         request::{CurrentRequest, PowerSource, VoltageRequest},
         units::{ElectricCurrent, ElectricPotential},
     },
@@ -160,18 +160,7 @@ impl Default for TargetPower {
 
 #[derive(Clone)]
 pub enum DeviceRequest {
-    Request(
-        TargetPower,
-        Arc<Signal<CriticalSectionRawMutex, Result<(), RequestError>>>,
-    ),
-    SetTarget(TargetPower),
     GetSourceCapabilities(Arc<Signal<CriticalSectionRawMutex, Option<SourceCapabilities>>>),
-    GetActiveTarget(Arc<Signal<CriticalSectionRawMutex, TargetPower>>),
-    SelectPdo(
-        usize, // PDO index
-        Arc<Signal<CriticalSectionRawMutex, Result<(), RequestError>>>,
-    ),
-    GetActivePdo(Arc<Signal<CriticalSectionRawMutex, Option<(usize, PowerDataObject)>>>),
 }
 
 #[derive(Clone, Debug, defmt::Format)]
@@ -180,55 +169,10 @@ pub enum RequestError {
     Unsupported,
 }
 
-#[derive(Clone, Debug)]
-pub enum PdoType {
-    Fixed {
-        voltage: ElectricPotential,
-        max_current: ElectricCurrent,
-    },
-    Pps {
-        min_voltage: ElectricPotential,
-        max_voltage: ElectricPotential,
-        max_current: ElectricCurrent,
-    },
-    Other,
-}
-
-impl PdoType {
-    pub fn from_pdo(pdo: &PowerDataObject) -> Self {
-        match pdo {
-            PowerDataObject::FixedSupply(fixed) => PdoType::Fixed {
-                voltage: fixed.voltage(),
-                max_current: fixed.max_current(),
-            },
-            PowerDataObject::Augmented(Augmented::Spr(pps)) => PdoType::Pps {
-                min_voltage: pps.min_voltage(),
-                max_voltage: pps.max_voltage(),
-                max_current: pps.max_current(),
-            },
-            _ => PdoType::Other,
-        }
-    }
-
-    pub fn supports_voltage_adjustment(&self) -> bool {
-        matches!(self, PdoType::Pps { .. })
-    }
-
-    pub fn supports_current_adjustment(&self) -> bool {
-        matches!(self, PdoType::Pps { .. })
-    }
-}
-
 struct DeviceCtx<'a> {
-    active_target: TargetPower,
     active_power_source: Option<PowerSource>,
     req_rx: watch::Receiver<'a, CriticalSectionRawMutex, DeviceRequest, 1>,
     source_capabilities: Option<SourceCapabilities>,
-    requesting: Option<(
-        TargetPower,
-        Arc<Signal<CriticalSectionRawMutex, Result<(), RequestError>>>,
-    )>,
-    selected_pdo_index: Option<usize>,
 }
 
 #[derive(Clone)]
@@ -240,45 +184,11 @@ impl<'a> Device<'a> {
     pub fn new(req_rx: watch::Receiver<'a, CriticalSectionRawMutex, DeviceRequest, 1>) -> Self {
         Self {
             ctx: Arc::new(Mutex::new(DeviceCtx {
-                active_target: Default::default(),
                 active_power_source: None,
                 req_rx,
                 source_capabilities: None,
-                requesting: Default::default(),
-                selected_pdo_index: None,
             })),
         }
-    }
-
-    fn find_pdo_index_for_request(
-        request: &PowerSource,
-        source_capabilities: &SourceCapabilities,
-    ) -> Option<usize> {
-        match request {
-            PowerSource::Pps(pps_request) => {
-                // For PPS requests, find the matching PPS PDO
-                for (index, pdo) in source_capabilities.pdos().iter().enumerate() {
-                    if let PowerDataObject::Augmented(Augmented::Spr(pps_pdo)) = pdo {
-                        // Check if this PPS PDO can satisfy the request
-                        let req_voltage = pps_request.output_voltage();
-                        let req_current = pps_request.operating_current();
-
-                        if req_voltage >= pps_pdo.min_voltage()
-                            && req_voltage <= pps_pdo.max_voltage()
-                            && req_current <= pps_pdo.max_current()
-                        {
-                            return Some(index);
-                        }
-                    }
-                }
-            }
-            _ => {
-                // For non-PPS requests, we can't easily determine the PDO index
-                // without more complex matching logic. For now, return None.
-                return None;
-            }
-        }
-        None
     }
 }
 
@@ -289,70 +199,19 @@ impl<'a> DevicePolicyManager for Device<'a> {
     ) -> usbpd::protocol_layer::message::request::PowerSource {
         let mut ctx = self.ctx.lock().await;
         ctx.source_capabilities = Some(source_capabilities.clone());
-        let (target, resp_signal) = match ctx.requesting.take() {
-            Some((target, resp_signal)) => (target, Some(resp_signal)),
-            None => {
-                let target = ctx.active_target.clone();
-                (target, None)
-            }
-        };
 
-        match usbpd::protocol_layer::message::request::PowerSource::new_pps(
-            usbpd::protocol_layer::message::request::CurrentRequest::Specific(target.current),
-            target.voltage,
+        // 简化策略：总是请求最高电压和最大电流
+        let req = PowerSource::new_fixed(
+            CurrentRequest::Highest,
+            VoltageRequest::Highest,
             source_capabilities,
-        ) {
-            Ok(req) => {
-                if let PowerSource::Pps(req) = &req {
-                    if req.capability_mismatch() {
-                        error!("capability_mismatch. {}", target);
+        )
+        .unwrap();
 
-                        if let Some(resp_signal) = resp_signal {
-                            resp_signal.signal(Err(RequestError::Mismatch));
-                        }
+        defmt::info!("request: highest voltage and current");
+        ctx.active_power_source = Some(req.clone());
 
-                        return ctx.active_power_source.unwrap_or(
-                            PowerSource::new_fixed(
-                                CurrentRequest::Highest,
-                                VoltageRequest::Safe5V,
-                                source_capabilities,
-                            )
-                            .unwrap(),
-                        );
-                    }
-                }
-
-                defmt::info!("request: {}, {}", target, req);
-                if let Some(resp_signal) = resp_signal {
-                    resp_signal.signal(Ok(()));
-                }
-                ctx.active_target = target;
-                ctx.active_power_source = Some(req.clone());
-
-                // Update selected_pdo_index based on the request
-                ctx.selected_pdo_index =
-                    Self::find_pdo_index_for_request(&req, source_capabilities);
-
-                return req;
-            }
-            Err(_) => {
-                error!("can not get request. {}", target);
-
-                if let Some(resp_signal) = resp_signal {
-                    resp_signal.signal(Err(RequestError::Unsupported));
-                }
-
-                match ctx.active_power_source {
-                    Some(req) => return req,
-                    None => PowerSource::new_fixed(
-                        CurrentRequest::Highest,
-                        VoltageRequest::Safe5V,
-                        source_capabilities,
-                    )
-                    .unwrap(),
-                }
-            }
-        }
+        req
     }
 
     async fn get_event(
@@ -362,76 +221,18 @@ impl<'a> DevicePolicyManager for Device<'a> {
         use usbpd::sink::device_policy_manager::Event;
 
         let mut ctx = self.ctx.lock().await;
-        let keep_pps_alive_ticker = Timer::after_secs(5);
+        let keep_alive_ticker = Timer::after_secs(10);
 
-        let futures = select(ctx.req_rx.changed(), keep_pps_alive_ticker);
+        let futures = select(ctx.req_rx.changed(), keep_alive_ticker);
 
         match futures.await {
-            Either::First(DeviceRequest::Request(target, resp_signal)) => {
-                ctx.requesting = Some((target, resp_signal));
-                return Event::RequestSourceCapabilities;
-            }
-            Either::First(DeviceRequest::SetTarget(target)) => {
-                ctx.active_target = target;
-                return Event::None;
-            }
             Either::First(DeviceRequest::GetSourceCapabilities(resp_signal)) => {
                 resp_signal.signal(ctx.source_capabilities.clone());
-                return Event::None;
-            }
-            Either::First(DeviceRequest::GetActiveTarget(resp_signal)) => {
-                resp_signal.signal(ctx.active_target.clone());
-                return Event::None;
-            }
-            Either::First(DeviceRequest::SelectPdo(pdo_index, resp_signal)) => {
-                if let Some(ref caps) = ctx.source_capabilities {
-                    if let Some(pdo) = caps.pdos().get(pdo_index) {
-                        // Create target power based on PDO type
-                        let target = match PdoType::from_pdo(pdo) {
-                            PdoType::Fixed {
-                                voltage,
-                                max_current,
-                            } => TargetPower {
-                                voltage,
-                                current: max_current,
-                            },
-                            PdoType::Pps {
-                                min_voltage,
-                                max_voltage: _,
-                                max_current,
-                            } => {
-                                // Start with minimum voltage for PPS
-                                TargetPower {
-                                    voltage: min_voltage,
-                                    current: max_current,
-                                }
-                            }
-                            PdoType::Other => {
-                                resp_signal.signal(Err(RequestError::Unsupported));
-                                return Event::None;
-                            }
-                        };
-                        ctx.requesting = Some((target, resp_signal));
-                        ctx.selected_pdo_index = Some(pdo_index);
-                        return Event::RequestSourceCapabilities;
-                    }
-                }
-                resp_signal.signal(Err(RequestError::Unsupported));
-                return Event::None;
-            }
-            Either::First(DeviceRequest::GetActivePdo(resp_signal)) => {
-                let result = if let (Some(ref caps), Some(index)) =
-                    (&ctx.source_capabilities, ctx.selected_pdo_index)
-                {
-                    caps.pdos().get(index).map(|pdo| (index, pdo.clone()))
-                } else {
-                    None
-                };
-                resp_signal.signal(result);
-                return Event::None;
+                Event::None
             }
             Either::Second(_) => {
-                return Event::RequestSourceCapabilities;
+                // 定期保持连接活跃
+                Event::RequestSourceCapabilities
             }
         }
     }
@@ -446,71 +247,12 @@ impl<'a> SinkAgent<'a> {
         Self { req_tx }
     }
 
-    pub async fn request(&self, target: TargetPower) -> Result<(), RequestError> {
-        let resp = Arc::new(Signal::<CriticalSectionRawMutex, Result<(), RequestError>>::new());
-        self.req_tx
-            .send(DeviceRequest::Request(target, resp.clone()));
-
-        resp.wait().await
-    }
-
-    pub async fn get_pps(&self) -> Option<SprProgrammablePowerSupply> {
-        let resp = Arc::new(Signal::new());
-        self.req_tx
-            .send(DeviceRequest::GetSourceCapabilities(resp.clone()));
-
-        let source_capabilities = resp.wait().await;
-
-        source_capabilities
-            .as_ref()
-            .map(|caps| {
-                caps.pdos().iter().find_map(|pdo| match pdo {
-                    PowerDataObject::Augmented(Augmented::Spr(pps)) => Some(pps.clone()),
-                    _ => None,
-                })
-            })
-            .unwrap_or_default()
-    }
-
-    pub async fn get_target(&self) -> TargetPower {
-        let resp = Arc::new(Signal::new());
-        self.req_tx
-            .send(DeviceRequest::GetActiveTarget(resp.clone()));
-
-        resp.wait().await
-    }
-
-    pub async fn set_target(&self, target: TargetPower) {
-        self.req_tx.send(DeviceRequest::SetTarget(target));
-    }
-
     pub async fn get_source_capabilities(&self) -> Option<SourceCapabilities> {
         let resp = Arc::new(Signal::new());
         self.req_tx
             .send(DeviceRequest::GetSourceCapabilities(resp.clone()));
 
         resp.wait().await
-    }
-
-    pub async fn select_pdo(&self, pdo_index: usize) -> Result<(), RequestError> {
-        let resp = Arc::new(Signal::<CriticalSectionRawMutex, Result<(), RequestError>>::new());
-        self.req_tx
-            .send(DeviceRequest::SelectPdo(pdo_index, resp.clone()));
-
-        resp.wait().await
-    }
-
-    pub async fn get_active_pdo(&self) -> Option<(usize, PowerDataObject)> {
-        let resp = Arc::new(Signal::new());
-        self.req_tx.send(DeviceRequest::GetActivePdo(resp.clone()));
-
-        resp.wait().await
-    }
-
-    pub async fn get_active_pdo_type(&self) -> Option<PdoType> {
-        self.get_active_pdo()
-            .await
-            .map(|(_, pdo)| PdoType::from_pdo(&pdo))
     }
 }
 

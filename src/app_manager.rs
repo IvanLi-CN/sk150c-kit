@@ -1,14 +1,10 @@
-use alloc::{sync::Arc, vec::Vec};
-use core::cmp::min;
+use alloc::sync::Arc;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
-use embassy_time::{with_timeout, Duration, Ticker};
-use uom::si::{electric_current::milliampere, electric_potential::millivolt};
-use usbpd::protocol_layer::message::units::{ElectricCurrent, ElectricPotential};
 
 use crate::{
     button::{ButtonCode, InputEvent},
-    config_manager::{Config, ConfigAgent},
-    power::{self, PdoType, TargetPower},
+    config_manager::ConfigAgent,
+    power,
     power_output::PowerOutput,
     InputSubscriber,
 };
@@ -54,31 +50,11 @@ impl<'d> AppManager<'d> {
     pub async fn init(&mut self) {
         self.mode = AppMode::Monitor;
 
-        let ctx = self.context.lock().await;
-        let config = ctx.config.snapshot().await;
-
-        let initial_request = TargetPower {
-            voltage: config.target_voltage,
-            current: config.target_current,
-        };
-
-        match with_timeout(Duration::from_secs(2), ctx.sink.request(initial_request)).await {
-            Ok(Ok(_)) => {
-                // Request successful
-                defmt::info!("Initial power request successful");
-            }
-            Ok(Err(err)) => {
-                // Request failed, but we got a response
-                defmt::error!("Initial power request failed: {}", err);
-                ctx.output.set_off().await;
-                ctx.sink.request(Default::default()).await.ok(); // Request 5V, ignore result
-            }
-            Err(_) => {
-                // Request timed out, likely not a PD source
-                defmt::warn!("Initial power request timed out. Assuming non-PD source.");
-                ctx.output.set_off().await;
-            }
-        }
+        // 使用简化的"贪婪"策略，自动请求最高电压
+        // 不需要手动请求，USB PD 策略引擎会自动处理
+        defmt::info!(
+            "Using simplified greedy USB PD strategy - will automatically request highest voltage"
+        );
 
         defmt::info!("AppManager initialized successfully");
     }
