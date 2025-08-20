@@ -44,3 +44,5 @@ Thumbs.db
 
 # 中文文档（保留本地，不提交到开源仓库）
 *.zh.md
+
+.augment

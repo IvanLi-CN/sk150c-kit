@@ -47,7 +47,6 @@ use usb::usb_task;
 mod adc_reader;
 mod app_manager;
 mod button;
-mod comp;
 mod config_manager;
 mod power;
 mod power_output;
@@ -221,16 +220,6 @@ async fn main(spawner: Spawner) {
     let power_output = POWER_OUTPUT.init(MaybeUninit::new(power_output));
     let power_output = unsafe { power_output.assume_init_mut() };
 
-    // 启动软件欠压保护任务
-    let uvp_config = comp::UvpConfig::default(); // 使用默认配置：5V阈值，自动恢复
-    spawner
-        .spawn(comp::undervoltage_protection_task(
-            power_output.clone(),
-            uvp_config,
-        ))
-        .unwrap();
-    defmt::info!("软件欠压保护任务已启动");
-
     let adc_calibration = AdcCalibration {
         ts_cal1,
         ts_cal2,
@@ -314,7 +303,12 @@ async fn adc_task() {
     loop {
         if let Some(values) = adc_reader.poll().await {
             ADC_PUBSUB.publish_immediate((values.0, values.1));
-            defmt::info!("ADC: V={}V, I={}A, T={}°C", values.0, values.1, values.2);
+            defmt::info!(
+                "ADC: VOUT={}V, VIN={}V, T={}°C",
+                values.0,
+                values.1,
+                values.2
+            );
         }
     }
 }
