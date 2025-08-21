@@ -12,11 +12,11 @@ use crate::{INPUT_CAP, INPUT_PUB, INPUT_SUB};
 #[derive(Debug, PartialEq, Clone, defmt::Format)]
 pub enum InputEvent {
     /// 按钮短按
-    SingleClick,
+    Click,
     /// 按钮正在长按
-    SingleHolding,
+    Holding,
     /// 按钮长按结束
-    SingleLongReleased,
+    LongReleased,
 }
 
 // 简化的单按钮内部结构
@@ -65,7 +65,7 @@ impl ButtonInternal {
     async fn poll(&self) -> ButtonEvent {
         loop {
             let prev_state_mutex = self.state.lock().await;
-            let prev_state = prev_state_mutex.clone();
+            let prev_state = *prev_state_mutex;
             drop(prev_state_mutex);
 
             match prev_state {
@@ -225,22 +225,22 @@ impl InputManager {
         match event {
             ButtonEvent::ShortPress => {
                 defmt::info!("Button short press detected");
-                self.channel.publish_immediate(InputEvent::SingleClick);
+                self.channel.publish_immediate(InputEvent::Click);
             }
             ButtonEvent::LongPressStart => {
                 defmt::info!("Button long press started");
-                self.channel.publish_immediate(InputEvent::SingleHolding);
+                self.channel.publish_immediate(InputEvent::Holding);
             }
             ButtonEvent::LongPressEnd => {
                 defmt::info!("Button long press ended");
-                self.channel
-                    .publish_immediate(InputEvent::SingleLongReleased);
+                self.channel.publish_immediate(InputEvent::LongReleased);
             }
             _ => (),
         }
     }
 
     // 检查按钮是否处于激活状态（用于调试）
+    #[allow(dead_code)]
     pub async fn is_button_active(&self) -> bool {
         self.button.is_active().await
     }

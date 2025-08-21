@@ -1,5 +1,6 @@
+#![allow(dead_code)]
+
 use alloc::sync::Arc;
-use core::borrow::Borrow;
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex,
     channel::{Channel, Sender},
@@ -7,8 +8,7 @@ use embassy_sync::{
     signal::Signal,
     watch,
 };
-use embassy_time::Delay;
-use embedded_hal_async::i2c::I2c;
+
 // use m24c64_driver::M24C64; // 暂时注释掉，因为不再使用 EEPROM
 use uom::si::{electric_current::milliampere, electric_potential::millivolt};
 use usbpd::protocol_layer::message::units::{ElectricCurrent, ElectricPotential};
@@ -110,7 +110,7 @@ impl ConfigManager {
         let target_current = self.read_target_current().await?;
 
         Ok(Config {
-            target_voltage: target_voltage,
+            target_voltage,
             target_current,
         })
     }

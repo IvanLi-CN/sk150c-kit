@@ -1,9 +1,6 @@
 use alloc::sync::Arc;
 use embassy_stm32::{
-    gpio::{Level, Output},
-    peripherals::TIM1,
-    timer::simple_pwm::SimplePwm,
-    timer::Channel,
+    gpio::Output, peripherals::TIM1, timer::simple_pwm::SimplePwm, timer::Channel,
 };
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embassy_time::Timer;
@@ -130,7 +127,7 @@ impl<'d> PowerManager<'d> {
         if let Some(event) = event {
             defmt::info!("Button event received: {:?}", event);
             match event {
-                InputEvent::SingleLongReleased => {
+                InputEvent::LongReleased => {
                     defmt::info!("Power button long press released - switching state");
                     // PB8长按释放，切换电源状态
                     let new_state = match self.state {

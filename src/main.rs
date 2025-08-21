@@ -29,11 +29,7 @@ use embassy_stm32::{
     timer::Channel,
     ucpd::{self},
 };
-use embassy_sync::{
-    blocking_mutex::raw::CriticalSectionRawMutex,
-    mutex::Mutex,
-    pubsub::{PubSubBehavior, Subscriber},
-};
+use embassy_sync::{mutex::Mutex, pubsub::PubSubBehavior};
 use embassy_time::Duration;
 use embedded_alloc::LlffHeap as Heap;
 use embedded_hal_02::Pwm;
@@ -56,13 +52,14 @@ mod types;
 mod usb;
 
 const VREFBUF_BASE: u32 = 0x40010030;
-const VREFBUF_CSR_ADDR: *mut u32 = (VREFBUF_BASE + 0x00) as *mut u32;
+const VREFBUF_CSR_ADDR: *mut u32 = VREFBUF_BASE as *mut u32;
 const TS_CAL1_ADDR: *mut u16 = 0x1FFF75A8 as *mut u16;
 const TS_CAL2_ADDR: *mut u16 = 0x1FFF75CA as *mut u16;
 const VREFINT_DATA_ADDR: *mut u16 = 0x1FFF75AA as *mut u16;
 
 const ADC_READER_BUF_SIZE: usize = 8; // 最小缓冲区大小
 
+#[allow(dead_code)]
 static I2C_BUS_MUTEX: StaticCell<SharedI2cBus> = StaticCell::new();
 static mut ADC_READER: MaybeUninit<AdcReader<'static, ADC_READER_BUF_SIZE>> = MaybeUninit::uninit();
 static INPUT_MANAGER: StaticCell<MaybeUninit<InputManager>> = StaticCell::new();
@@ -90,7 +87,10 @@ async fn main(spawner: Spawner) {
         use core::mem::MaybeUninit;
         const HEAP_SIZE: usize = 4096; // 增加堆大小到 4KB
         static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
-        unsafe { HEAP.init(HEAP_MEM.as_mut_ptr() as usize, HEAP_SIZE) }
+        #[allow(static_mut_refs)]
+        unsafe {
+            HEAP.init(HEAP_MEM.as_mut_ptr() as usize, HEAP_SIZE)
+        }
     }
 
     let mut config = embassy_stm32::Config::default();
@@ -117,7 +117,7 @@ async fn main(spawner: Spawner) {
     defmt::info!("STM32 initialized successfully");
 
     unsafe {
-        write_volatile(VREFBUF_CSR_ADDR, 0x0000_0021 as u32);
+        write_volatile(VREFBUF_CSR_ADDR, 0x0000_0021_u32);
     }
     defmt::info!("VREFBUF configured");
 
@@ -149,7 +149,7 @@ async fn main(spawner: Spawner) {
 
     let power_device = power::Device::new(SINK_REQUEST_CHANNEL.receiver().unwrap());
 
-    let sink_agent = power::SinkAgent::new(SINK_REQUEST_CHANNEL.sender());
+    let _sink_agent = power::SinkAgent::new(SINK_REQUEST_CHANNEL.sender());
 
     let pd_service = PowerInput::new(
         p.UCPD1,
@@ -241,7 +241,7 @@ async fn main(spawner: Spawner) {
     // 创建PowerOutput用于电源控制
     let power_output = PowerOutput::new(vbus_ce_pin);
     let power_output = POWER_OUTPUT.init(MaybeUninit::new(power_output));
-    let power_output = unsafe { power_output.assume_init_mut() };
+    let _power_output = unsafe { power_output.assume_init_mut() };
 
     let adc_calibration = AdcCalibration {
         ts_cal1,
@@ -259,6 +259,7 @@ async fn main(spawner: Spawner) {
             v_ref_int_ch,
             adc_calibration,
         );
+        #[allow(static_mut_refs)]
         unsafe {
             ADC_READER.write(adc_reader);
         }
@@ -318,6 +319,7 @@ async fn input_task(input_manager: &'static InputManager) {
 
 #[embassy_executor::task]
 async fn adc_task() {
+    #[allow(static_mut_refs)]
     let adc_reader = unsafe { ADC_READER.assume_init_mut() };
 
     loop {

@@ -1,6 +1,7 @@
-use core::sync::atomic::AtomicBool;
+#![allow(dead_code)]
 
 use alloc::sync::Arc;
+use core::sync::atomic::AtomicBool;
 use embassy_stm32::gpio::{Level, Output};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embassy_time::Timer;

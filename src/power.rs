@@ -1,5 +1,5 @@
 use alloc::sync::Arc;
-use core::{marker::PhantomData, usize};
+use core::marker::PhantomData;
 use defmt::{info, warn, Format};
 use embassy_futures::select::{select, Either};
 use embassy_stm32::{
@@ -159,11 +159,13 @@ impl Default for TargetPower {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub enum DeviceRequest {
     GetSourceCapabilities(Arc<Signal<CriticalSectionRawMutex, Option<SourceCapabilities>>>),
 }
 
 #[derive(Clone, Debug, defmt::Format)]
+#[allow(dead_code)]
 pub enum RequestError {
     Mismatch,
     Unsupported,
@@ -192,7 +194,7 @@ impl<'a> Device<'a> {
     }
 }
 
-impl<'a> DevicePolicyManager for Device<'a> {
+impl DevicePolicyManager for Device<'_> {
     async fn request(
         &mut self,
         source_capabilities: &SourceCapabilities,
@@ -209,7 +211,7 @@ impl<'a> DevicePolicyManager for Device<'a> {
         .unwrap();
 
         defmt::info!("request: highest voltage and current");
-        ctx.active_power_source = Some(req.clone());
+        ctx.active_power_source = Some(req);
 
         req
     }
@@ -238,6 +240,7 @@ impl<'a> DevicePolicyManager for Device<'a> {
     }
 }
 
+#[allow(dead_code)]
 pub struct SinkAgent<'a> {
     req_tx: watch::Sender<'a, CriticalSectionRawMutex, DeviceRequest, 1>,
 }
@@ -247,6 +250,7 @@ impl<'a> SinkAgent<'a> {
         Self { req_tx }
     }
 
+    #[allow(dead_code)]
     pub async fn get_source_capabilities(&self) -> Option<SourceCapabilities> {
         let resp = Arc::new(Signal::new());
         self.req_tx
@@ -287,6 +291,7 @@ where
     Rx: RxDma<T> + 'd,
     Tx: TxDma<T> + 'd,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         peri: Peri<'d, T>,
         irq: Irq,
@@ -324,7 +329,7 @@ where
                 self.irq.clone(),
                 self.cc1.reborrow(),
                 self.cc2.reborrow(),
-                self.config.clone(),
+                self.config,
             );
             ucpd.cc_phy().set_pull(CcPull::Sink);
             info!("Waiting for USB connection...");

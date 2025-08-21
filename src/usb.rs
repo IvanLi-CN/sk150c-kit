@@ -70,11 +70,13 @@ impl From<EndpointError> for Disconnected {
     }
 }
 
+#[allow(dead_code)]
 struct WebEndpoints<'d, D: Driver<'d>> {
     write_ep: D::EndpointIn,
     read_ep: D::EndpointOut,
 }
 
+#[allow(dead_code)]
 impl<'d, D: Driver<'d>> WebEndpoints<'d, D> {
     fn new(builder: &mut Builder<'d, D>, config: &'d web_usb::Config<'d>) -> Self {
         let mut func = builder.function(0xff, 0x00, 0x00);

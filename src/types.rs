@@ -51,6 +51,7 @@ pub(crate) type InputSubscriber<'d> =
     pubsub::Subscriber<'d, CriticalSectionRawMutex, InputEvent, INPUT_CAP, INPUT_SUB, INPUT_PUB>;
 
 #[derive(Clone, Copy, Debug, defmt::Format)]
+#[allow(dead_code)]
 pub(crate) struct AvailableVoltCurr {
     pub _5v: Option<u32>,
     pub _9v: Option<u32>,
@@ -61,6 +62,7 @@ pub(crate) struct AvailableVoltCurr {
 }
 
 impl AvailableVoltCurr {
+    #[allow(dead_code)]
     pub const fn default() -> Self {
         Self {
             _5v: None,
