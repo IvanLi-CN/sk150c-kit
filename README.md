@@ -69,6 +69,7 @@ This is the preparatory work version before formal project development, complete
 - ✅ Button input processing
 - ✅ Power output control
 - ✅ Software undervoltage protection
+- ✅ **Power Management System** - Advanced power state control
 - ✅ Removed display-related code
 - ✅ Removed buzzer-related code
 - ✅ Removed gravity sensor-related code
@@ -80,6 +81,45 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Documentation
 
 - [SK150C Digital Power Supply Manual](docs/SK150C-Digital-Power-Supply-Manual.pdf)
+
+## Power Management
+
+The SK150C Kit features an advanced power management system that provides intelligent power state control with visual feedback.
+
+![Power Management Flow](assets/power_management_flow.svg)
+
+### Features
+
+- **Dual Power States**: Standby and Working modes with automatic state management
+- **Visual Feedback**: LED breathing effect (3-second cycle) in standby mode
+- **Smart Control**: Long-press button detection (1.5 seconds) for state switching
+- **Hardware Integration**: Synchronized control of LED indicators and power switches
+
+### Hardware Connections
+
+| Pin | Function | Configuration | Description |
+|-----|----------|---------------|-------------|
+| **PB8** | Power Button | Input, High-active | Long press (1.5s) to toggle power states |
+| **PA8** | LED Indicator | PWM Output (TIM1_CH1), Open-drain | Breathing effect in standby, off in working mode |
+| **PA15** | Power Switch Control | Output | Low=switch closed, High=switch open |
+
+### Operation
+
+1. **System Startup**: Automatically enters standby mode
+2. **Standby Mode**:
+   - LED shows breathing effect (3-second cycle)
+   - Power switch is open (PA15=HIGH)
+3. **Working Mode**:
+   - LED is completely off
+   - Power switch is closed (PA15=LOW)
+4. **State Switching**: Long press PB8 button to toggle between modes
+
+### Implementation Details
+
+- **State Machine**: Clean separation between standby and working states
+- **Breathing Algorithm**: Smooth sinusoidal PWM control at 50Hz update rate
+- **Button Handling**: Debounced long-press detection with 1.5-second threshold
+- **Synchronization**: Atomic state updates ensure consistent hardware control
 
 ## Getting Started
 

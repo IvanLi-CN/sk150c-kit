@@ -1,6 +1,5 @@
 use alloc::sync::Arc;
-use core::array;
-use embassy_futures::select;
+use embassy_futures::select::{self, select3};
 use embassy_stm32::exti::ExtiInput;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::pubsub::{PubSubBehavior, PubSubChannel};
@@ -9,53 +8,23 @@ use embassy_time::{Duration, Instant, Timer};
 
 use crate::{INPUT_CAP, INPUT_PUB, INPUT_SUB};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, defmt::Format)]
-pub enum ButtonId {
-    Btn0, // 对应button0（高电平有效）
-    Btn1,
-    Btn2,
-    Btn3,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, defmt::Format)]
-pub enum ButtonCode {
-    BtnLT,
-    BtnRT,
-    BtnRB,
-    BtnLB,
-}
-
-impl ButtonId {
-    pub fn map_to_code(self) -> ButtonCode {
-        match self {
-            ButtonId::Btn0 => ButtonCode::BtnLB,
-            ButtonId::Btn1 => ButtonCode::BtnRB,
-            ButtonId::Btn2 => ButtonCode::BtnLT,
-            ButtonId::Btn3 => ButtonCode::BtnRT,
-        }
-    }
-}
-
-// 输入事件类型
+// 简化的输入事件类型 - 只支持单按钮
 #[derive(Debug, PartialEq, Clone, defmt::Format)]
 pub enum InputEvent {
-    /// 单个按钮短按 (按钮代码)
-    SingleClick(ButtonCode),
-    /// 单个按钮正在长按 (按钮代码)
-    SingleHolding(ButtonCode),
-    /// 单个按钮长按结束 (按钮代码)
-    SingleLongReleased(ButtonCode),
-    /// 双按钮长按结束 (按钮代码1, 按钮代码2)
-    DualLongReleased(ButtonCode, ButtonCode),
+    /// 按钮短按
+    SingleClick,
+    /// 按钮正在长按
+    SingleHolding,
+    /// 按钮长按结束
+    SingleLongReleased,
 }
 
+// 简化的单按钮内部结构
 #[derive(Clone)]
 struct ButtonInternal {
     pin: Arc<Mutex<CriticalSectionRawMutex, ExtiInput<'static>>>,
-    id: ButtonId,
     debounce: Duration,
     long_press: Duration,
-    active_high: bool, // 新增电平极性标志
     state: Arc<Mutex<CriticalSectionRawMutex, ButtonState>>,
     press_start: Arc<Mutex<CriticalSectionRawMutex, Option<Instant>>>,
 }
@@ -67,50 +36,30 @@ enum ButtonState {
     Debouncing,
     Pressed,
     LongHeld,
-    ReleasedAfterLong,
 }
 
 impl ButtonInternal {
-    fn new(
-        id: ButtonId,
-        pin: ExtiInput<'static>,
-        debounce: Duration,
-        long_press: Duration,
-        active_high: bool,
-    ) -> Self {
+    fn new(pin: ExtiInput<'static>, debounce: Duration, long_press: Duration) -> Self {
         Self {
-            id,
             pin: Arc::new(Mutex::new(pin)),
             debounce,
             long_press,
-            active_high,
             state: Arc::new(Mutex::new(ButtonState::Idle)),
             press_start: Arc::new(Mutex::new(None)),
         }
     }
 
+    // PB8按钮是高电平有效（Pull::Down配置）
     async fn wait_active(&self) {
-        if self.active_high {
-            self.pin.lock().await.wait_for_high().await;
-        } else {
-            self.pin.lock().await.wait_for_low().await;
-        }
+        self.pin.lock().await.wait_for_high().await;
     }
 
     async fn wait_inactive(&self) {
-        if self.active_high {
-            self.pin.lock().await.wait_for_low().await;
-        } else {
-            self.pin.lock().await.wait_for_high().await;
-        }
+        self.pin.lock().await.wait_for_low().await;
     }
 
     async fn is_active(&self) -> bool {
-        if self.active_high {
-            self.pin.lock().await.is_high()
-        } else {
-            self.pin.lock().await.is_low()
-        }
+        self.pin.lock().await.is_high()
     }
 
     async fn poll(&self) -> ButtonEvent {
@@ -127,7 +76,9 @@ impl ButtonInternal {
 
                 ButtonState::Idle => {
                     *self.press_start.lock().await = None;
+                    defmt::info!("Button waiting for press...");
                     self.wait_active().await;
+                    defmt::info!("Button pressed! Starting debounce...");
                     *self.state.lock().await = ButtonState::Debouncing;
                 }
 
@@ -138,8 +89,10 @@ impl ButtonInternal {
                     let is_active = self.is_active().await;
 
                     if is_active {
+                        defmt::info!("Button press confirmed after debounce");
                         *self.state.lock().await = ButtonState::Pressed;
                     } else {
+                        defmt::info!("Button press was noise, ignoring");
                         self.reset().await;
                     }
                 }
@@ -151,29 +104,69 @@ impl ButtonInternal {
                         return ButtonEvent::ShortPress;
                     }
                     let start = start.unwrap();
-                    let long_time = start + self.long_press;
+                    let long_time = start + self.long_press; // 1秒
+                    let timeout_time = start + Duration::from_millis(3000); // 3秒超时
 
                     let wait_long = Timer::at(long_time);
+                    let wait_timeout = Timer::at(timeout_time);
 
-                    select::select(self.wait_inactive(), wait_long).await;
-
-                    if Instant::now() >= long_time {
-                        *self.state.lock().await = ButtonState::LongHeld;
-                        return ButtonEvent::LongPressStart;
-                    } else {
-                        self.reset().await;
-                        return ButtonEvent::ShortPress;
+                    // 等待按钮释放、1秒长按阈值或3秒超时
+                    match select3(self.wait_inactive(), wait_long, wait_timeout).await {
+                        select::Either3::First(_) => {
+                            // 按钮在1秒前释放 - 短按
+                            if Instant::now() < long_time {
+                                defmt::info!("Button short press detected (released before 1s)");
+                                self.reset().await;
+                                return ButtonEvent::ShortPress;
+                            } else {
+                                // 按钮在1-3秒之间释放 - 长按
+                                defmt::info!("Button long press detected (released between 1-3s)");
+                                self.reset().await;
+                                return ButtonEvent::LongPressEnd;
+                            }
+                        }
+                        select::Either3::Second(_) => {
+                            // 达到1秒阈值，进入长按状态
+                            defmt::info!("Button long press detected (1s threshold reached)");
+                            *self.state.lock().await = ButtonState::LongHeld;
+                            return ButtonEvent::LongPressStart;
+                        }
+                        select::Either3::Third(_) => {
+                            // 超过3秒，忽略此次按压
+                            defmt::info!("Button press timeout (>3s), ignoring");
+                            self.reset().await;
+                            return ButtonEvent::None;
+                        }
                     }
                 }
 
                 ButtonState::LongHeld => {
-                    self.wait_inactive().await;
-                    *self.state.lock().await = ButtonState::ReleasedAfterLong;
-                    return ButtonEvent::LongPressEnd;
-                }
+                    let start = self.press_start.lock().await;
+                    if start.is_none() {
+                        self.reset().await;
+                        return ButtonEvent::None;
+                    }
+                    let start = start.unwrap();
+                    let timeout_time = start + Duration::from_millis(3000); // 3秒超时
+                    let wait_timeout = Timer::at(timeout_time);
 
-                ButtonState::ReleasedAfterLong => {
-                    self.reset().await;
+                    defmt::info!("Button in long hold state, waiting for release or timeout...");
+
+                    // 等待按钮释放或3秒超时
+                    match select::select(self.wait_inactive(), wait_timeout).await {
+                        select::Either::First(_) => {
+                            // 按钮在3秒前释放 - 正常长按结束
+                            defmt::info!("Button released after long press (within 3s)");
+                            self.reset().await;
+                            return ButtonEvent::LongPressEnd;
+                        }
+                        select::Either::Second(_) => {
+                            // 超过3秒，忽略此次按压
+                            defmt::info!("Button long press timeout (>3s), ignoring");
+                            self.reset().await;
+                            return ButtonEvent::None;
+                        }
+                    }
                 }
             }
         }
@@ -192,43 +185,22 @@ enum ButtonEvent {
     LongPressEnd,
 }
 
+// 简化的单按钮输入管理器
 #[derive(Clone)]
 pub struct InputManager {
-    buttons: Arc<[ButtonInternal; 4]>,
-    active_button_count: Arc<Mutex<CriticalSectionRawMutex, u8>>,
+    button: ButtonInternal,
     channel:
         Arc<PubSubChannel<CriticalSectionRawMutex, InputEvent, INPUT_CAP, INPUT_SUB, INPUT_PUB>>,
-    button_events: Arc<Mutex<CriticalSectionRawMutex, [Option<ButtonEvent>; 4]>>,
 }
 
 impl InputManager {
-    pub fn new(buttons: [ExtiInput<'static>; 4], debounce: Duration, long_press: Duration) -> Self {
-        let btn_ids = [
-            ButtonId::Btn0, // 对应button0（高电平有效）
-            ButtonId::Btn1,
-            ButtonId::Btn2,
-            ButtonId::Btn3,
-        ];
-
-        let mut buttons_iter = buttons.into_iter();
-        let buttons = array::from_fn(|i| {
-            // 设置Btn1为高电平有效，其他为低电平有效
-            let active_high = matches!(btn_ids[i], ButtonId::Btn0);
-
-            ButtonInternal::new(
-                btn_ids[i],
-                buttons_iter.next().expect("Exact size iterator"),
-                debounce,
-                long_press,
-                active_high,
-            )
-        });
+    // 简化构造函数，只接受单个按钮（PB8）
+    pub fn new(button_pin: ExtiInput<'static>, debounce: Duration, long_press: Duration) -> Self {
+        let button = ButtonInternal::new(button_pin, debounce, long_press);
 
         Self {
-            buttons: Arc::new(buttons),
-            active_button_count: Arc::new(Mutex::new(0)),
+            button,
             channel: Arc::new(PubSubChannel::new()),
-            button_events: Arc::new(Mutex::new([None; 4])),
         }
     }
 
@@ -244,86 +216,32 @@ impl InputManager {
 
     // Main loop tick function
     pub async fn tick(&mut self) {
-        use embassy_futures::select::{select4, Either4};
-
-        let res = select4(
-            self.buttons[0].poll(),
-            self.buttons[1].poll(),
-            self.buttons[2].poll(),
-            self.buttons[3].poll(),
-        )
-        .await;
-
-        match res {
-            Either4::First(event) => self.btn_state_change(ButtonId::Btn0, event).await,
-            Either4::Second(event) => self.btn_state_change(ButtonId::Btn1, event).await,
-            Either4::Third(event) => self.btn_state_change(ButtonId::Btn2, event).await,
-            Either4::Fourth(event) => self.btn_state_change(ButtonId::Btn3, event).await,
-        };
+        let event = self.button.poll().await;
+        self.handle_button_event(event).await;
     }
 
-    async fn btn_state_change(&mut self, btn_id: ButtonId, event: ButtonEvent) {
-        let mut button_events = self.button_events.lock().await;
-
-        let mut active_button_count = self.active_button_count.lock().await;
+    // 简化的单按钮事件处理
+    async fn handle_button_event(&mut self, event: ButtonEvent) {
         match event {
             ButtonEvent::ShortPress => {
-                if *active_button_count == 0 {
-                    let btn_code = self.map_button_id_to_code(btn_id);
-                    self.channel
-                        .publish_immediate(InputEvent::SingleClick(btn_code));
-                }
+                defmt::info!("Button short press detected");
+                self.channel.publish_immediate(InputEvent::SingleClick);
             }
             ButtonEvent::LongPressStart => {
-                if *active_button_count == 0 {
-                    let btn_code = self.map_button_id_to_code(btn_id);
-                    self.channel
-                        .publish_immediate(InputEvent::SingleHolding(btn_code));
-                }
-                *active_button_count += 1;
+                defmt::info!("Button long press started");
+                self.channel.publish_immediate(InputEvent::SingleHolding);
             }
-            ButtonEvent::LongPressEnd => match *active_button_count {
-                1 => {
-                    let btn_code = self.map_button_id_to_code(btn_id);
-                    self.channel
-                        .publish_immediate(InputEvent::SingleLongReleased(btn_code));
-
-                    *active_button_count = 0;
-                }
-                2 => {
-                    let btn_second = button_events
-                        .iter()
-                        .enumerate()
-                        .find(|(idx, ele)| {
-                            **ele == Some(ButtonEvent::LongPressStart) && *idx != btn_id as usize
-                        })
-                        .map(|(i, _)| i)
-                        .unwrap();
-
-                    let btn_code1 = self.map_button_id_to_code(btn_id);
-                    let btn_code2 = self.map_button_id_to_code(self.buttons[btn_second].id);
-
-                    self.channel
-                        .publish_immediate(InputEvent::DualLongReleased(btn_code1, btn_code2));
-
-                    *active_button_count = 0;
-                }
-                _ => {
-                    *active_button_count = active_button_count.saturating_sub(1);
-                }
-            },
+            ButtonEvent::LongPressEnd => {
+                defmt::info!("Button long press ended");
+                self.channel
+                    .publish_immediate(InputEvent::SingleLongReleased);
+            }
             _ => (),
         }
-
-        button_events[btn_id as usize] = Some(event);
     }
 
-    pub async fn is_reset_status(&self) -> bool {
-        self.buttons[1].is_active().await && self.buttons[3].is_active().await
-    }
-
-    /// 将ButtonId映射为ButtonCode
-    fn map_button_id_to_code(&self, btn_id: ButtonId) -> ButtonCode {
-        btn_id.map_to_code()
+    // 检查按钮是否处于激活状态（用于调试）
+    pub async fn is_button_active(&self) -> bool {
+        self.button.is_active().await
     }
 }

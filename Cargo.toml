@@ -43,6 +43,7 @@ embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa956
 embassy-usb = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f", features = ["defmt"] }
 
 embedded-hal = "1.0.0"
+embedded-hal-02 = { package = "embedded-hal", version = "0.2.7" }
 embedded-hal-async = "1.0.0"
 embedded-hal-bus = "0.3.0"
 embedded-io-async = { version = "0.6.1" }
@@ -54,6 +55,7 @@ static_cell = "2.1.0"
 usbpd = { version = "0.2.1", features = ["defmt"] }
 
 uom = { version = "0.36.0", default-features = false, features = ["si"] }
+libm = "0.2.15"
 
 
 # cargo build/run

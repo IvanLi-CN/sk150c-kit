@@ -3,15 +3,15 @@
 
 use adc_reader::{AdcCalibration, AdcReader};
 use alloc::sync::Arc;
-use app_manager::{AppContext, AppManager};
+use app_manager::{PowerManager, PowerManagerContext};
 use button::InputManager;
-use config_manager::{ConfigAgent, ConfigManager};
+use config_manager::ConfigManager;
+
 use core::{
     mem::MaybeUninit,
     ptr::{read_volatile, write_volatile},
 };
 use defmt_rtt as _;
-use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
 
 use embassy_executor::Spawner;
 use embassy_stm32::{
@@ -24,9 +24,9 @@ use embassy_stm32::{
     gpio::{Level, Output, OutputType, Pull, Speed},
     i2c,
     peripherals::{self, DMA2_CH4, DMA2_CH5, PB4, PB6, UCPD1},
-    spi::{self, Spi},
-    time::{khz, Hertz},
+    time::khz,
     timer::simple_pwm::{PwmPin, SimplePwm},
+    timer::Channel,
     ucpd::{self},
 };
 use embassy_sync::{
@@ -36,13 +36,14 @@ use embassy_sync::{
 };
 use embassy_time::Duration;
 use embedded_alloc::LlffHeap as Heap;
+use embedded_hal_02::Pwm;
+
 use panic_probe as _;
 use power::PowerInput;
 use power_output::PowerOutput;
 use shared::*;
 use static_cell::StaticCell;
 use types::*;
-use usb::usb_task;
 
 mod adc_reader;
 mod app_manager;
@@ -120,16 +121,14 @@ async fn main(spawner: Spawner) {
     }
     defmt::info!("VREFBUF configured");
 
-    // input manager
-
-    let buttons = [
-        ExtiInput::new(p.PB8, p.EXTI8, Pull::Down), // BTN0 - active high
-        ExtiInput::new(p.PC10, p.EXTI10, Pull::Up), // BTN1 - active low
-        ExtiInput::new(p.PB1, p.EXTI1, Pull::Up),   // BTN2 - active low
-        ExtiInput::new(p.PC13, p.EXTI13, Pull::Up), // BTN3 - 占位符 (PB2 现在用作输出控制)
-    ];
-
-    let input_mgr = InputManager::new(buttons, Duration::from_millis(50), Duration::from_secs(1));
+    // 简化的单按钮输入管理器 - 只使用PB8
+    let power_button = ExtiInput::new(p.PB8, p.EXTI8, Pull::Down); // PB8 - 高电平有效
+                                                                   // 消抖时间50ms，长按阈值1000ms（1s）
+    let input_mgr = InputManager::new(
+        power_button,
+        Duration::from_millis(50),
+        Duration::from_millis(1000),
+    );
     defmt::info!("Input manager created");
 
     let input_mgr = INPUT_MANAGER.init(MaybeUninit::new(input_mgr));
@@ -215,6 +214,30 @@ async fn main(spawner: Spawner) {
     let vbus_ce_pin = Output::new(p.PB5, Level::Low, Speed::Low);
     defmt::info!("VBUS_CE pin PB5 configured");
 
+    // PA8: POWER_LED (TIM1_CH1) - PWM 呼吸灯控制
+    // 配置为开漏输出，低电平点亮LED
+    use embassy_stm32::timer::simple_pwm::PwmPinConfig;
+    let pin_config = PwmPinConfig {
+        output_type: OutputType::OpenDrain,
+        speed: Speed::Low,
+        pull: Pull::None,
+    };
+    let ch1 = PwmPin::new_with_config(p.PA8, pin_config);
+    let mut pwm = SimplePwm::new(
+        p.TIM1,
+        Some(ch1),
+        None,
+        None,
+        None,
+        khz(1), // 1kHz PWM频率
+        Default::default(),
+    );
+    // 设置最大占空比 - 使用embassy-stm32的API
+    let max_duty = pwm.get_max_duty();
+    pwm.set_duty(Channel::Ch1, 0); // 初始状态LED熄灭
+    pwm.enable(Channel::Ch1);
+    defmt::info!("PWM for PA8 (POWER_LED) configured, max_duty: {}", max_duty);
+
     // 创建PowerOutput用于电源控制
     let power_output = PowerOutput::new(vbus_ce_pin);
     let power_output = POWER_OUTPUT.init(MaybeUninit::new(power_output));
@@ -257,25 +280,22 @@ async fn main(spawner: Spawner) {
         defmt::panic!("Failed to subscribe to input events: {}", e);
     }
 
-    let config_agent =
-        ConfigAgent::create(&CONFIG_REQUEST_CHANNEL, &CONFIG_SNAPSHOT_CHANNEL).unwrap();
-
-    let app_ctx = AppContext {
-        config: Arc::new(config_agent),
+    // 创建电源管理器上下文
+    let power_ctx = PowerManagerContext {
         input_rx: Arc::new(Mutex::new(input_subscriber.unwrap())),
-        output: Arc::new(power_output.clone()),
-        sink: Arc::new(sink_agent),
+        power_switch: Arc::new(Mutex::new(vin_ce_pin)), // PA15 电源开关控制
+        led_pwm: Arc::new(Mutex::new(pwm)),             // PA8 PWM LED控制
     };
-    let mut app_manager = AppManager::new(app_ctx.clone());
+    let mut power_manager = PowerManager::new(power_ctx);
 
-    defmt::info!("Initializing app manager...");
-    app_manager.init().await;
-    defmt::info!("App manager initialized successfully");
+    defmt::info!("Initializing power manager...");
+    power_manager.init().await;
+    defmt::info!("Power manager initialized successfully");
 
     defmt::info!("Entering main loop");
     let mut counter = 0u32;
     loop {
-        app_manager.tick().await;
+        power_manager.tick().await;
 
         // 每1000次循环打印一次调试信息
         counter = counter.wrapping_add(1);
@@ -303,12 +323,7 @@ async fn adc_task() {
     loop {
         if let Some(values) = adc_reader.poll().await {
             ADC_PUBSUB.publish_immediate((values.0, values.1));
-            defmt::info!(
-                "ADC: VOUT={}V, VIN={}V, T={}°C",
-                values.0,
-                values.1,
-                values.2
-            );
+            // ADC日志已删除，避免刷屏
         }
     }
 }
