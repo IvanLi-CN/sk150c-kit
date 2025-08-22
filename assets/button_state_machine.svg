@@ -1,0 +1,167 @@
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景 -->
+  <rect width="800" height="600" fill="#F8F9FA" stroke="#E9ECEF" stroke-width="2"/>
+  
+  <!-- 标题 -->
+  <text x="400" y="40" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#333333">
+    按键交互状态机架构
+  </text>
+  
+  <!-- 副标题 -->
+  <text x="400" y="65" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#666666">
+    Button Interaction State Machine Architecture
+  </text>
+  
+  <!-- Idle状态 (顶部中心) -->
+  <circle cx="400" cy="150" r="60" fill="#4A90E2" stroke="#333333" stroke-width="3"/>
+  <text x="400" y="145" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">
+    Idle
+  </text>
+  <text x="400" y="160" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">
+    空闲状态
+  </text>
+  
+  <!-- WaitingRelease状态 (左下) -->
+  <circle cx="200" cy="350" r="60" fill="#F5A623" stroke="#333333" stroke-width="3"/>
+  <text x="200" y="340" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">
+    WaitingRelease
+  </text>
+  <text x="200" y="355" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">
+    等待释放
+  </text>
+  <text x="200" y="370" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">
+    监听释放+定时器
+  </text>
+  
+  <!-- LongPressed状态 (右下) -->
+  <circle cx="600" cy="350" r="60" fill="#D0021B" stroke="#333333" stroke-width="3"/>
+  <text x="600" y="345" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">
+    LongPressed
+  </text>
+  <text x="600" y="360" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">
+    长按状态
+  </text>
+  
+  <!-- 状态转换箭头 -->
+  
+  <!-- Idle -> WaitingRelease -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333333"/>
+    </marker>
+  </defs>
+  
+  <path d="M 360 180 Q 280 220 240 320" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="300" y="240" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#333333">
+    按键按下
+  </text>
+  <text x="300" y="255" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666666">
+    Button Press
+  </text>
+  
+  <!-- WaitingRelease -> Idle (短按) -->
+  <path d="M 240 320 Q 320 280 360 180" fill="none" stroke="#28A745" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="320" y="270" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#28A745" font-weight="bold">
+    短按释放
+  </text>
+  <text x="320" y="285" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#28A745">
+    50ms-1000ms
+  </text>
+  <text x="320" y="298" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#28A745">
+    → ShortPress
+  </text>
+  
+  <!-- WaitingRelease -> LongPressed -->
+  <path d="M 260 350 L 540 350" fill="none" stroke="#DC3545" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="400" y="340" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#DC3545" font-weight="bold">
+    1000ms定时器触发
+  </text>
+  <text x="400" y="355" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#DC3545">
+    → LongPressStart (立即触发)
+  </text>
+  
+  <!-- LongPressed -> Idle -->
+  <path d="M 560 320 Q 520 280 440 180" fill="none" stroke="#6F42C1" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="520" y="240" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#6F42C1" font-weight="bold">
+    长按释放
+  </text>
+  <text x="520" y="255" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#6F42C1">
+    → LongPressEnd
+  </text>
+  
+  <!-- WaitingRelease -> Idle (抖动过滤) -->
+  <path d="M 160 320 Q 120 250 360 180" fill="none" stroke="#6C757D" stroke-width="1" stroke-dasharray="5,5" marker-end="url(#arrowhead)"/>
+  <text x="180" y="220" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#6C757D">
+    抖动过滤
+  </text>
+  <text x="180" y="235" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#6C757D">
+    &lt;50ms → None
+  </text>
+  
+  <!-- 时间阈值说明框 -->
+  <rect x="50" y="450" width="200" height="120" fill="#E3F2FD" stroke="#2196F3" stroke-width="2" rx="10"/>
+  <text x="150" y="475" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1976D2">
+    时间阈值
+  </text>
+  <text x="60" y="500" font-family="Arial, sans-serif" font-size="12" fill="#333333">
+    • 消抖阈值: 50ms
+  </text>
+  <text x="60" y="520" font-family="Arial, sans-serif" font-size="12" fill="#333333">
+    • 长按阈值: 1000ms
+  </text>
+  <text x="60" y="540" font-family="Arial, sans-serif" font-size="12" fill="#333333">
+    • 响应精度: &lt;1ms
+  </text>
+  <text x="60" y="560" font-family="Arial, sans-serif" font-size="12" fill="#333333">
+    • 防重复触发: ✓
+  </text>
+  
+  <!-- 事件类型说明框 -->
+  <rect x="550" y="450" width="200" height="120" fill="#F3E5F5" stroke="#9C27B0" stroke-width="2" rx="10"/>
+  <text x="650" y="475" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#7B1FA2">
+    事件类型
+  </text>
+  <text x="560" y="500" font-family="Arial, sans-serif" font-size="12" fill="#333333">
+    • ShortPress: 短按
+  </text>
+  <text x="560" y="520" font-family="Arial, sans-serif" font-size="12" fill="#333333">
+    • LongPressStart: 长按开始
+  </text>
+  <text x="560" y="540" font-family="Arial, sans-serif" font-size="12" fill="#333333">
+    • LongPressEnd: 长按结束
+  </text>
+  <text x="560" y="560" font-family="Arial, sans-serif" font-size="12" fill="#333333">
+    • None: 无效事件
+  </text>
+  
+  <!-- 关键特性说明框 -->
+  <rect x="300" y="450" width="200" height="120" fill="#E8F5E8" stroke="#4CAF50" stroke-width="2" rx="10"/>
+  <text x="400" y="475" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#388E3C">
+    关键特性
+  </text>
+  <text x="310" y="500" font-family="Arial, sans-serif" font-size="12" fill="#333333">
+    • 立即响应长按
+  </text>
+  <text x="310" y="520" font-family="Arial, sans-serif" font-size="12" fill="#333333">
+    • 精确时间控制
+  </text>
+  <text x="310" y="540" font-family="Arial, sans-serif" font-size="12" fill="#333333">
+    • 事件驱动架构
+  </text>
+  <text x="310" y="560" font-family="Arial, sans-serif" font-size="12" fill="#333333">
+    • 完全可测试
+  </text>
+  
+  <!-- 按键图标 -->
+  <g transform="translate(70, 100)">
+    <rect x="0" y="0" width="40" height="20" rx="5" fill="#6C757D" stroke="#333333" stroke-width="1"/>
+    <text x="20" y="14" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">BTN</text>
+  </g>
+  
+  <!-- 时钟图标 -->
+  <g transform="translate(680, 100)">
+    <circle cx="20" cy="15" r="15" fill="none" stroke="#333333" stroke-width="2"/>
+    <line x1="20" y1="15" x2="20" y2="8" stroke="#333333" stroke-width="2"/>
+    <line x1="20" y1="15" x2="25" y2="15" stroke="#333333" stroke-width="2"/>
+  </g>
+</svg>
