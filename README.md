@@ -33,12 +33,13 @@ The SK150C kit implements a complete control solution for adjustable power suppl
 
 ### Main Pin Configuration
 
-- **PA0**: VOUT_SN (ADC1_IN1) - Output voltage detection
-- **PA1**: VIN_SN (ADC2_IN2) - Input voltage detection
-- **PA15**: VIN_CE (GPIO_Output) - Input control enable
-- **PB5**: VBUS_CE (GPIO_Output) - VBUS control enable
-- **PB7**: VBUS_LED (TIM4_CH2) - VBUS status LED
-- **PA8**: POWER_LED (TIM1_CH1) - Power status LED
+- **PA0**: VBUS (ADC1_IN1) - USB-C output voltage detection
+- **PA1**: VIN (ADC2_IN2) - Input voltage detection
+- **PA15**: VIN_EN (GPIO_Output) - Input control enable
+- **PB7**: VBUS_EN (GPIO_Output) - USB-C power output switch control
+- **PB5**: VBUS_LED (GPIO_Output) - VBUS dual-color LED control
+- **PA8**: POWER_LED (TIM1_CH1) - Power status LED with breathing effect
+- **PB8**: POWER_KEY (GPIO_Input) - Power button input
 - **PB0**: NTC (ADC1_IN15) - Temperature detection
 
 ### USB PD Interface
@@ -86,7 +87,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 The SK150C Kit features an advanced power management system that provides intelligent power state control with visual feedback.
 
-![Power Management Flow](assets/power_management_flow.svg)
+![Power Management Flow](docs/assets/power_management_flow.svg)
 
 ### Features
 
@@ -100,7 +101,7 @@ The SK150C Kit features an advanced power management system that provides intell
 | Pin | Function | Configuration | Description |
 |-----|----------|---------------|-------------|
 | **PB8** | Power Button | Input, High-active | Long press (1.5s) to toggle power states |
-| **PA8** | LED Indicator | PWM Output (TIM1_CH1), Open-drain | Breathing effect in standby, off in working mode |
+| **PA8** | LED Indicator | PWM Output (TIM1_CH1), Open-drain | Breathing in standby, solid/off in working mode |
 | **PA15** | Power Switch Control | Output | Low=switch closed, High=switch open |
 
 ### Operation
@@ -109,9 +110,13 @@ The SK150C Kit features an advanced power management system that provides intell
 2. **Standby Mode**:
    - LED shows breathing effect (3-second cycle)
    - Power switch is open (PA15=HIGH)
+   - VBUS output is disabled
 3. **Working Mode**:
-   - LED is completely off
+   - LED state depends on VBUS status:
+     - **VBUS enabled**: LED constantly on
+     - **VBUS disabled**: LED off
    - Power switch is closed (PA15=LOW)
+   - VBUS can be toggled with short button press
 4. **State Switching**: Long press PB8 button to toggle between modes
 
 ### Implementation Details
@@ -121,6 +126,62 @@ The SK150C Kit features an advanced power management system that provides intell
 - **Button Handling**: Debounced long-press detection with 1.5-second threshold
 - **Synchronization**: Atomic state updates ensure consistent hardware control
 
+## USB-C Power Output Switch Control
+
+### Hardware Interface Definition
+
+The system features two independent LED indicator systems:
+
+#### Power LED System (PA8 - POWER_LED)
+
+- **Function**: Overall system power status indication
+- **Control**: PWM with breathing effect capability
+- **Hardware**: Open-drain output, low level lights LED
+
+**Power LED States**:
+
+- **Breathing Mode**: System in Standby state - LED breathes with 3-second cycle
+- **Solid On**: System in Working state + VBUS enabled - LED constantly on
+- **Off**: System in Working state + VBUS disabled - LED off
+
+#### VBUS LED System (PB5 - VBUS_LED)
+
+- **Function**: USB-C output voltage and status indication
+- **Control**: GPIO output for dual-color LED
+- **Hardware**: 3V3 → Resistor → Green LED → PB5 → Red LED → Resistor → GND
+
+**VBUS LED States**:
+
+- **Green Blinking**: VBUS disabled + voltage < 5.5V
+- **Green Solid**: VBUS enabled + voltage < 5.5V
+- **Red Blinking**: VBUS disabled + voltage ≥ 5.5V
+- **Red Solid**: VBUS enabled + voltage ≥ 5.5V
+
+#### USB-C Power Switch Control (PB7 - VBUS_EN)
+
+- **Function**: Controls USB-C power output
+- **Default State**: Disabled (VBUS_EN output low)
+- **Toggle Condition**: Short press power button (PB8)
+- **Reset Condition**: Force reset to disabled when VIN < 5V
+
+#### Input Signals
+
+- **VIN (PA1)**: Input power detection, threshold 5V
+- **VBUS (PA0)**: USB-C output voltage detection, threshold 5.5V
+- **POWER_KEY (PB8)**: Power button input for state control
+
+### Complete System State Machine
+
+![Complete System State Machine](docs/assets/vbus-control-state-diagram.svg)
+
+The SK150C Kit implements a comprehensive state machine that manages all system components and their interactions, including:
+
+- **System States**: Standby and Working modes with proper state transitions
+- **Power LED Control**: Breathing in Standby, Solid/Off in Working mode based on VBUS status
+- **VBUS LED System**: Dual-color LED with voltage-based color indication
+- **Button Input System**: Debounced input with short/long press detection
+- **Safety & Protection**: Undervoltage protection and automatic VBUS disable
+
 ## Getting Started
 
 For detailed development instructions, see [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
@@ -128,14 +189,14 @@ For detailed development instructions, see [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.
 ### Quick Build
 
 ```bash
-# Setup development environment
-make setup
-
 # Build the project
 make build
 
 # Flash to device
 make flash
+
+# For more commands, see:
+make help
 ```
 
 ## Contributing
@@ -158,4 +219,6 @@ For detailed information about the hardware design, see [models/README.md](model
 
 ---
 
-*For Chinese documentation, see README.zh.md*
+## Additional Documentation
+
+For Chinese documentation, see README.zh.md

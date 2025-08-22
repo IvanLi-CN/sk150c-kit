@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1000" height="700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 20px; font-weight: bold; text-anchor: middle; fill: #1f2937; }
+      .subtitle { font-family: 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 600; text-anchor: middle; fill: #374151; }
+      .state { font-family: 'Segoe UI', Arial, sans-serif; font-size: 14px; font-weight: bold; text-anchor: middle; fill: white; }
+      .label { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; text-anchor: middle; fill: #374151; }
+      .pin-label { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; text-anchor: middle; fill: #374151; }
+      .arrow { stroke: #4b5563; stroke-width: 2.5; fill: none; marker-end: url(#arrowhead); }
+      .standby-box { fill: #10b981; stroke: #059669; stroke-width: 2; rx: 12; }
+      .working-box { fill: #3b82f6; stroke: #2563eb; stroke-width: 2; rx: 12; }
+      .hardware-box { fill: #f59e0b; stroke: #d97706; stroke-width: 2; rx: 8; }
+      .button-box { fill: #8b5cf6; stroke: #7c3aed; stroke-width: 2; rx: 8; }
+      .led-box { fill: #ef4444; stroke: #dc2626; stroke-width: 2; rx: 8; }
+      .vbus-box { fill: #06b6d4; stroke: #0891b2; stroke-width: 2; rx: 8; }
+      .logic-box { fill: #f3f4f6; stroke: #d1d5db; stroke-width: 1; rx: 8; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0 0, 10 4, 0 8" fill="#4b5563" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="500" y="35" class="title">SK150C Kit Power Management System</text>
+
+  <!-- System Start -->
+  <circle cx="500" cy="80" r="25" fill="#e5e7eb" stroke="#9ca3af" stroke-width="2"/>
+  <text x="500" y="87" class="label" style="font-weight: 600;">System Start</text>
+
+  <!-- Arrow to Standby -->
+  <line x1="500" y1="105" x2="500" y2="140" class="arrow"/>
+
+  <!-- Standby State -->
+  <rect x="350" y="150" width="300" height="100" class="standby-box"/>
+  <text x="500" y="180" class="state">STANDBY MODE</text>
+  <text x="500" y="200" class="label" style="fill: white; font-weight: 500;">• Power LED: Breathing (3s cycle)</text>
+  <text x="500" y="220" class="label" style="fill: white; font-weight: 500;">• VIN Switch: Open (PA15=HIGH)</text>
+  <text x="500" y="240" class="label" style="fill: white; font-weight: 500;">• VBUS: Disabled</text>
+
+  <!-- Working State -->
+  <rect x="350" y="320" width="300" height="100" class="working-box"/>
+  <text x="500" y="350" class="state">WORKING MODE</text>
+  <text x="500" y="370" class="label" style="fill: white; font-weight: 500;">• Power LED: Solid/Off (depends on VBUS)</text>
+  <text x="500" y="390" class="label" style="fill: white; font-weight: 500;">• VIN Switch: Closed (PA15=LOW)</text>
+  <text x="500" y="410" class="label" style="fill: white; font-weight: 500;">• VBUS: Controllable via Short Press</text>
+
+  <!-- Long Press Button (Left) -->
+  <rect x="80" y="280" width="180" height="80" class="button-box"/>
+  <text x="170" y="310" class="state">LONG PRESS</text>
+  <text x="170" y="330" class="label" style="fill: white; font-weight: 500;">PB8 Button</text>
+  <text x="170" y="350" class="label" style="fill: white; font-weight: 500;">Hold ≥ 1.5 seconds</text>
+
+  <!-- Short Press Button (Right) -->
+  <rect x="740" y="280" width="180" height="80" class="vbus-box"/>
+  <text x="830" y="310" class="state">SHORT PRESS</text>
+  <text x="830" y="330" class="label" style="fill: white; font-weight: 500;">PB8 Button</text>
+  <text x="830" y="350" class="label" style="fill: white; font-weight: 500;">Toggle VBUS On/Off</text>
+
+  <!-- 90-degree angle connections with precise positioning -->
+
+  <!-- Long Press Button to Standby State -->
+  <path d="M 260 310 L 300 310 L 300 200 L 350 200" fill="none" class="arrow"/>
+  <rect x="270" y="250" width="70" height="16" fill="white" stroke="#d1d5db" stroke-width="1" rx="3"/>
+  <text x="305" y="261" class="label" style="font-size: 10px; font-weight: 600;">To Standby</text>
+
+  <!-- Long Press Button to Working State -->
+  <path d="M 260 330 L 300 330 L 300 370 L 350 370" fill="none" class="arrow"/>
+  <rect x="270" y="340" width="70" height="16" fill="white" stroke="#d1d5db" stroke-width="1" rx="3"/>
+  <text x="305" y="351" class="label" style="font-size: 10px; font-weight: 600;">To Working</text>
+
+  <!-- Standby to Working (right side) -->
+  <path d="M 650 220 L 700 220 L 700 350 L 650 350" fill="none" class="arrow"/>
+  <rect x="680" y="280" width="70" height="16" fill="white" stroke="#d1d5db" stroke-width="1" rx="3"/>
+  <text x="715" y="291" class="label" style="font-size: 10px; font-weight: 600;">Long Press</text>
+
+  <!-- Working to Standby (right side) -->
+  <path d="M 650 390 L 720 390 L 720 180 L 650 180" fill="none" class="arrow"/>
+  <rect x="700" y="300" width="70" height="16" fill="white" stroke="#d1d5db" stroke-width="1" rx="3"/>
+  <text x="735" y="311" class="label" style="font-size: 10px; font-weight: 600;">Long Press</text>
+
+  <!-- Short Press Button to Working State (VBUS control) -->
+  <path d="M 740 340 L 700 340 L 700 380 L 650 380" fill="none" class="arrow"/>
+  <rect x="670" y="355" width="80" height="16" fill="white" stroke="#d1d5db" stroke-width="1" rx="3"/>
+  <text x="710" y="366" class="label" style="font-size: 10px; font-weight: 600;">VBUS Toggle</text>
+
+  <!-- Hardware Connections -->
+  <text x="500" y="480" class="subtitle">Hardware Pin Configuration</text>
+
+  <!-- PB8 Button -->
+  <rect x="50" y="500" width="200" height="50" class="hardware-box"/>
+  <text x="150" y="520" class="pin-label" style="font-weight: 600;">PB8 - Power Button</text>
+  <text x="150" y="535" class="pin-label">Active High, Debounced Input</text>
+
+  <!-- PA8 LED -->
+  <rect x="270" y="500" width="200" height="50" class="led-box"/>
+  <text x="370" y="520" class="pin-label" style="fill: white; font-weight: 600;">PA8 - Power LED (TIM1_CH1)</text>
+  <text x="370" y="535" class="pin-label" style="fill: white;">Open-drain, PWM Breathing</text>
+
+  <!-- PA15 Power Switch -->
+  <rect x="490" y="500" width="200" height="50" class="hardware-box"/>
+  <text x="590" y="520" class="pin-label" style="font-weight: 600;">PA15 - VIN Switch Control</text>
+  <text x="590" y="535" class="pin-label">Low=Closed, High=Open</text>
+
+  <!-- PB7 VBUS Control -->
+  <rect x="710" y="500" width="200" height="50" class="vbus-box"/>
+  <text x="810" y="520" class="pin-label" style="fill: white; font-weight: 600;">PB7 - VBUS Enable</text>
+  <text x="810" y="535" class="pin-label" style="fill: white;">High=Enable, Low=Disable</text>
+
+  <!-- LED State Logic -->
+  <text x="500" y="580" class="subtitle">Power LED State Logic</text>
+
+  <rect x="50" y="600" width="900" height="50" class="logic-box"/>
+  <text x="500" y="620" class="label" style="font-weight: 600;">• STANDBY: LED Breathing (3-second cycle) • WORKING + VBUS OFF: LED Off • WORKING + VBUS ON: LED Solid On</text>
+  <text x="500" y="635" class="label">System starts in Standby mode. Long press toggles between Standby ↔ Working. Short press in Working mode toggles VBUS.</text>
+</svg>

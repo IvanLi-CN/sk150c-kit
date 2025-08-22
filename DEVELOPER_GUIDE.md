@@ -6,14 +6,18 @@ This document provides a detailed development guide for developers of the SK150C
 
 ### 1. Environment Setup
 
-Run the automated setup script:
+Ensure you have the required development tools installed:
+
+- Rust toolchain with `thumbv7em-none-eabihf` target
+- probe-rs for flashing and debugging
+- STM32CubeMX (optional, for hardware configuration)
 
 ```bash
-# Setup development environment
-./scripts/setup-dev.sh
+# Install Rust target
+rustup target add thumbv7em-none-eabihf
 
-# Or use Makefile
-make setup
+# Install probe-rs
+cargo install probe-rs --features cli
 ```
 
 ### 2. Build Project

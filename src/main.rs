@@ -6,6 +6,7 @@ use alloc::sync::Arc;
 use app_manager::{PowerManager, PowerManagerContext};
 use button::InputManager;
 use config_manager::ConfigManager;
+use vbus_manager::{VbusManager, VbusManagerContext};
 
 use core::{
     mem::MaybeUninit,
@@ -50,6 +51,9 @@ mod power_output;
 mod shared;
 mod types;
 mod usb;
+mod vbus_manager;
+
+mod tests;
 
 const VREFBUF_BASE: u32 = 0x40010030;
 const VREFBUF_CSR_ADDR: *mut u32 = VREFBUF_BASE as *mut u32;
@@ -165,13 +169,13 @@ async fn main(spawner: Spawner) {
     spawner.spawn(pd_task(pd_service)).unwrap();
 
     let mut adc1 = Adc::new(p.ADC1);
-    adc1.set_sample_time(SampleTime::CYCLES640_5);
+    adc1.set_sample_time(SampleTime::CYCLES640_5); // 保持较长的采样时间
     adc1.set_oversampling_ratio(0x07); // ratio X256
     adc1.set_oversampling_shift(4); // shift 4
     adc1.enable_regular_oversampling_mode(Rovsm::RESUMED, Trovs::AUTOMATIC, true);
     let mut adc2 = Adc::new(p.ADC2);
-    adc2.set_sample_time(SampleTime::CYCLES640_5);
-    adc1.set_oversampling_ratio(0x07); // ratio X256
+    adc2.set_sample_time(SampleTime::CYCLES640_5); // 保持较长的采样时间
+    adc2.set_oversampling_ratio(0x07); // ratio X256 (修正：应该是adc2)
     adc2.set_oversampling_shift(4); // shift 4
     adc2.enable_regular_oversampling_mode(Rovsm::RESUMED, Trovs::AUTOMATIC, true);
     // 根据 .ioc 文件配置 ADC 通道
@@ -210,9 +214,13 @@ async fn main(spawner: Spawner) {
     let vin_ce_pin = Output::new(p.PA15, Level::Low, Speed::Low);
     defmt::info!("VIN_CE pin PA15 configured");
 
-    // PB5: VBUS_CE (VBUS控制使能)
-    let vbus_ce_pin = Output::new(p.PB5, Level::Low, Speed::Low);
-    defmt::info!("VBUS_CE pin PB5 configured");
+    // PB7: VBUS_EN (VBUS控制使能) - USB-C 电源输出开关控制
+    let vbus_en_pin = Output::new(p.PB7, Level::Low, Speed::Low);
+    defmt::info!("VBUS_EN pin PB7 configured");
+
+    // PB5: VBUS_LED (双色LED控制) - 改为 GPIO 输出模式
+    let vbus_led_pin = Output::new(p.PB5, Level::Low, Speed::Low);
+    defmt::info!("VBUS_LED pin PB5 configured");
 
     // PA8: POWER_LED (TIM1_CH1) - PWM 呼吸灯控制
     // 配置为开漏输出，低电平点亮LED
@@ -238,10 +246,10 @@ async fn main(spawner: Spawner) {
     pwm.enable(Channel::Ch1);
     defmt::info!("PWM for PA8 (POWER_LED) configured, max_duty: {}", max_duty);
 
-    // 创建PowerOutput用于电源控制
-    let power_output = PowerOutput::new(vbus_ce_pin);
-    let power_output = POWER_OUTPUT.init(MaybeUninit::new(power_output));
-    let _power_output = unsafe { power_output.assume_init_mut() };
+    // 创建PowerOutput用于电源控制 - 使用 PB7 (VBUS_EN)
+    let power_output_instance = PowerOutput::new(vbus_en_pin);
+    let power_output_static = POWER_OUTPUT.init(MaybeUninit::new(power_output_instance.clone()));
+    let _power_output = unsafe { power_output_static.assume_init_mut() };
 
     let adc_calibration = AdcCalibration {
         ts_cal1,
@@ -273,17 +281,27 @@ async fn main(spawner: Spawner) {
     // let driver = embassy_stm32::usb::Driver::new(p.USB, Irqs, p.PA12, p.PA11);
     // spawner.spawn(usb_task(driver)).unwrap();
 
-    // Get input event subscriber
+    // Get input event subscribers for both managers
 
-    let input_subscriber = input_manager.subscriber();
+    let power_input_subscriber = input_manager.subscriber();
+    if let Err(e) = power_input_subscriber {
+        defmt::panic!(
+            "Failed to subscribe to input events for power manager: {}",
+            e
+        );
+    }
 
-    if let Err(e) = input_subscriber {
-        defmt::panic!("Failed to subscribe to input events: {}", e);
+    let vbus_input_subscriber = input_manager.subscriber();
+    if let Err(e) = vbus_input_subscriber {
+        defmt::panic!(
+            "Failed to subscribe to input events for vbus manager: {}",
+            e
+        );
     }
 
     // 创建电源管理器上下文
     let power_ctx = PowerManagerContext {
-        input_rx: Arc::new(Mutex::new(input_subscriber.unwrap())),
+        input_rx: Arc::new(Mutex::new(power_input_subscriber.unwrap())),
         power_switch: Arc::new(Mutex::new(vin_ce_pin)), // PA15 电源开关控制
         led_pwm: Arc::new(Mutex::new(pwm)),             // PA8 PWM LED控制
     };
@@ -293,9 +311,61 @@ async fn main(spawner: Spawner) {
     power_manager.init().await;
     defmt::info!("Power manager initialized successfully");
 
+    // 创建 VBUS 管理器上下文
+    let vbus_ctx = VbusManagerContext {
+        input_rx: Arc::new(Mutex::new(vbus_input_subscriber.unwrap())),
+        vbus_output: power_output_instance.clone(), // 使用现有的 PowerOutput
+        vbus_led_pin: Arc::new(Mutex::new(vbus_led_pin)), // PB5 双色 LED 控制
+    };
+    let mut vbus_manager = VbusManager::new(vbus_ctx);
+
+    defmt::info!("Initializing VBUS manager...");
+    vbus_manager.init().await;
+    defmt::info!("VBUS manager initialized successfully");
+
+    // VBUS 管理器将在主循环中运行
+
+    // 启动 VBUS ADC 监控任务
+    spawner.spawn(vbus_adc_task()).unwrap();
+
+    // 运行系统状态机测试
+    defmt::info!("Running system state machine tests...");
+    let test_result = crate::tests::system_state_tests::run_all_tests();
+    if !test_result {
+        defmt::error!("Tests failed! System may have bugs.");
+    }
+
     defmt::info!("Entering main loop");
     let mut counter = 0u32;
+
+    // 获取电压和状态监听器
+    let mut vbus_voltage_rx = shared::VBUS_VOLTAGE_CHANNEL.receiver().unwrap();
+    let mut vin_voltage_rx = shared::VIN_VOLTAGE_CHANNEL.receiver().unwrap();
+    let mut vbus_state_rx = shared::VBUS_STATE_CHANNEL.receiver().unwrap();
+
+    // 保持最新的VBUS状态
+    let mut current_vbus_enabled = false;
+
     loop {
+        // 获取最新的电压和状态信息
+        let vbus_voltage = vbus_voltage_rx.try_get().unwrap_or(0.0);
+        let vin_voltage = vin_voltage_rx.try_get().unwrap_or(0.0);
+
+        // 更新VBUS状态，只有在有新数据时才更新
+        if let Some(new_vbus_enabled) = vbus_state_rx.try_get() {
+            current_vbus_enabled = new_vbus_enabled;
+        }
+
+        // 更新VbusManager的电压信息
+        vbus_manager.update_voltages(vbus_voltage, vin_voltage);
+
+        // 执行VbusManager的tick
+        vbus_manager.tick().await;
+
+        // 更新PowerManager的电压信息（仅用于监控和LED显示）
+        power_manager.update_voltages(vin_voltage, vbus_voltage, current_vbus_enabled);
+
+        // 执行PowerManager的tick
         power_manager.tick().await;
 
         // 每1000次循环打印一次调试信息
@@ -314,6 +384,38 @@ async fn input_task(input_manager: &'static InputManager) {
     let mut input_manager = input_manager.clone();
     loop {
         input_manager.tick().await;
+    }
+}
+
+#[embassy_executor::task]
+async fn vbus_adc_task() {
+    let mut adc_subscriber = ADC_PUBSUB.subscriber().unwrap();
+    let vbus_voltage_sender = shared::VBUS_VOLTAGE_CHANNEL.sender();
+    let vin_voltage_sender = shared::VIN_VOLTAGE_CHANNEL.sender();
+
+    loop {
+        let (vout_voltage, vin_voltage) = adc_subscriber.next_message_pure().await;
+
+        // 发送 VBUS 电压到共享通道
+        vbus_voltage_sender.send(vout_voltage);
+
+        // 发送 VIN 电压到共享通道
+        vin_voltage_sender.send(vin_voltage);
+
+        // 记录电压状态变化
+        if vout_voltage >= 5.5 {
+            defmt::debug!(
+                "VBUS voltage: {}V (HIGH), VIN voltage: {}V",
+                vout_voltage,
+                vin_voltage
+            );
+        } else {
+            defmt::debug!(
+                "VBUS voltage: {}V (LOW), VIN voltage: {}V",
+                vout_voltage,
+                vin_voltage
+            );
+        }
     }
 }
 

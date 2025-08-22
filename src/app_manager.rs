@@ -8,16 +8,30 @@ use embedded_hal_02::Pwm;
 
 use crate::{button::InputEvent, InputSubscriber};
 
-/// 电源管理状态
+/// 全局系统状态
 #[derive(Debug, Clone, Copy, PartialEq, defmt::Format)]
-pub enum PowerState {
-    Standby, // 待机状态：呼吸灯 + 电源开关断开
-    Working, // 工作状态：LED熄灭 + 电源开关闭合
+pub enum SystemState {
+    Standby, // 待机状态：VIN_EN=LOW, VBUS_EN=LOW, 电源LED呼吸
+    Working, // 工作状态：VIN_EN=HIGH, VBUS_EN可切换, 电源LED根据VBUS状态
 }
 
-impl Default for PowerState {
+/// 电源LED状态
+#[derive(Debug, Clone, Copy, PartialEq, defmt::Format)]
+pub enum PowerLedState {
+    Off,       // LED 熄灭
+    Breathing, // LED 呼吸效果（VIN 关闭时）
+    SolidOn,   // LED 常亮（VIN + VBUS 都开启时）
+}
+
+impl Default for SystemState {
     fn default() -> Self {
         Self::Standby
+    }
+}
+
+impl Default for PowerLedState {
+    fn default() -> Self {
+        Self::Off
     }
 }
 
@@ -28,39 +42,95 @@ pub struct PowerManagerContext<'d> {
     pub led_pwm: Arc<Mutex<CriticalSectionRawMutex, SimplePwm<'d, TIM1>>>, // PA8 PWM 控制LED
 }
 
-/// 电源管理器
+/// 全局系统管理器
 pub struct PowerManager<'d> {
     context: PowerManagerContext<'d>,
-    state: PowerState,
-    breathing_phase: f32, // 呼吸灯相位 (0.0 to 2π)
-    tick_counter: u32,    // 用于定期状态报告
+    pub system_state: SystemState,
+    led_state: PowerLedState,
+    current_vin_voltage: f64,
+    current_vbus_voltage: f64,
+    current_vbus_enabled: bool,
+    breathing_counter: u32, // 呼吸效果计数器
+    tick_counter: u32,      // 用于定期状态报告
 }
 
 impl<'d> PowerManager<'d> {
     pub fn new(context: PowerManagerContext<'d>) -> Self {
         Self {
             context,
-            state: PowerState::default(),
-            breathing_phase: 0.0,
+            system_state: SystemState::default(),
+            led_state: PowerLedState::default(),
+            current_vin_voltage: 0.0,
+            current_vbus_voltage: 0.0,
+            current_vbus_enabled: false,
+            breathing_counter: 0,
             tick_counter: 0,
         }
     }
 
     pub async fn init(&mut self) {
         // 初始化为待机状态
-        self.set_state(PowerState::Standby).await;
+        self.set_system_state(SystemState::Standby).await;
         defmt::info!("PowerManager initialized in Standby state");
     }
 
-    /// 设置电源管理状态
-    async fn set_state(&mut self, new_state: PowerState) {
-        if self.state != new_state {
+    /// 更新电压信息（仅用于监控和LED显示）
+    pub fn update_voltages(&mut self, vin_voltage: f64, vbus_voltage: f64, vbus_enabled: bool) {
+        self.current_vin_voltage = vin_voltage;
+        self.current_vbus_voltage = vbus_voltage;
+        self.current_vbus_enabled = vbus_enabled;
+    }
+
+    /// 切换系统状态（由按键触发）
+    pub async fn toggle_system_state(&mut self) {
+        let new_state = match self.system_state {
+            SystemState::Standby => SystemState::Working,
+            SystemState::Working => SystemState::Standby,
+        };
+
+        defmt::info!(
+            "System state toggling from {:?} to {:?}",
+            self.system_state,
+            new_state
+        );
+
+        // 关键修复：当从Standby切换到Working时，需要重置VBUS状态
+        if self.system_state == SystemState::Standby && new_state == SystemState::Working {
+            defmt::info!("VIN re-enabled: Broadcasting VBUS reset signal");
+            // 立即更新本地VBUS状态，确保LED逻辑正确
+            self.current_vbus_enabled = false;
+            // 发送VBUS重置信号到共享通道
+            crate::shared::VBUS_RESET_CHANNEL.sender().send(true);
+        }
+
+        self.set_system_state(new_state).await;
+    }
+
+    /// 处理输入事件（用于测试）
+    pub async fn handle_input_event(&mut self, event: Option<InputEvent>) {
+        if let Some(event) = event {
+            defmt::info!("Button event received: {:?}", event);
+            match event {
+                InputEvent::LongReleased => {
+                    defmt::info!("Power button long press released - toggling system state");
+                    self.toggle_system_state().await;
+                }
+                _ => {
+                    defmt::info!("Other button event: {:?}, ignoring", event);
+                }
+            }
+        }
+    }
+
+    /// 设置系统状态
+    async fn set_system_state(&mut self, new_state: SystemState) {
+        if self.system_state != new_state {
             defmt::info!(
-                "Power state changing from {:?} to {:?}",
-                self.state,
+                "System state changing from {:?} to {:?}",
+                self.system_state,
                 new_state
             );
-            self.state = new_state;
+            self.system_state = new_state;
 
             // 同步更新硬件状态
             self.update_hardware_state().await;
@@ -69,25 +139,29 @@ impl<'d> PowerManager<'d> {
 
     /// 更新硬件状态（LED和电源开关）
     async fn update_hardware_state(&mut self) {
-        match self.state {
-            PowerState::Standby => {
-                // 待机状态：电源开关关断（低电平）
+        // 更新VIN开关状态 (PA15 - VIN_EN)
+        // 根据硬件指南：高电平导通，低电平关断
+        match self.system_state {
+            SystemState::Standby => {
+                // 待机状态：VIN关闭，PA15输出低电平（关断）
                 {
                     let mut power_switch = self.context.power_switch.lock().await;
                     power_switch.set_low();
                 }
-                defmt::info!("Power switch OFF (standby mode)");
+                defmt::info!("VIN_EN (PA15) = LOW - Standby mode, VIN disabled");
             }
-            PowerState::Working => {
-                // 工作状态：电源开关导通（高电平），LED熄灭
+            SystemState::Working => {
+                // 工作状态：VIN开启，PA15输出高电平（导通）
                 {
                     let mut power_switch = self.context.power_switch.lock().await;
                     power_switch.set_high();
                 }
-                self.set_led_duty(0).await; // LED熄灭
-                defmt::info!("Power switch ON (working mode), LED OFF");
+                defmt::info!("VIN_EN (PA15) = HIGH - Working mode, VIN enabled");
             }
         }
+
+        // 更新LED状态
+        self.update_led_state().await;
     }
 
     /// 设置LED的PWM占空比
@@ -100,19 +174,59 @@ impl<'d> PowerManager<'d> {
         // LED占空比已设置，不再打印日志以减少输出
     }
 
-    /// 更新呼吸灯效果（仅在待机状态下调用）
-    async fn update_breathing_led(&mut self) {
-        if self.state == PowerState::Standby {
-            // 3秒周期的呼吸灯效果
-            // 使用正弦波计算占空比 (0-100%)
-            let duty_percent = ((libm::sinf(self.breathing_phase) + 1.0) * 50.0) as u8;
-            self.set_led_duty(duty_percent).await;
+    /// 更新LED状态
+    async fn update_led_state(&mut self) {
+        // 根据系统状态和VBUS状态确定LED状态
+        let new_led_state = match self.system_state {
+            SystemState::Standby => PowerLedState::Breathing,
+            SystemState::Working => {
+                if self.current_vbus_enabled {
+                    PowerLedState::SolidOn
+                } else {
+                    PowerLedState::Off
+                }
+            }
+        };
 
-            // 更新相位，3秒完成一个周期
-            // 假设每20ms调用一次，3秒 = 3000ms = 150次调用
-            self.breathing_phase += 2.0 * core::f32::consts::PI / 150.0;
-            if self.breathing_phase >= 2.0 * core::f32::consts::PI {
-                self.breathing_phase = 0.0;
+        // 如果LED状态发生变化，更新状态
+        if self.led_state != new_led_state {
+            defmt::info!(
+                "🔄 LED state changing from {:?} to {:?} (VBUS_EN={})",
+                self.led_state,
+                new_led_state,
+                self.current_vbus_enabled
+            );
+            self.led_state = new_led_state;
+        }
+    }
+
+    /// 更新LED显示
+    async fn update_led_display(&mut self) {
+        match self.led_state {
+            PowerLedState::Off => {
+                // LED熄灭
+                self.set_led_duty(0).await;
+            }
+            PowerLedState::SolidOn => {
+                // LED常亮
+                self.set_led_duty(100).await;
+            }
+            PowerLedState::Breathing => {
+                // 呼吸效果：3秒周期 (150 * 20ms = 3000ms)
+                self.breathing_counter += 1;
+                if self.breathing_counter >= 150 {
+                    self.breathing_counter = 0;
+                }
+
+                // 简化的呼吸效果：三角波
+                let brightness = if self.breathing_counter < 75 {
+                    // 上升阶段：0% -> 100%
+                    (self.breathing_counter as f32 / 75.0) * 100.0
+                } else {
+                    // 下降阶段：100% -> 0%
+                    ((150 - self.breathing_counter) as f32 / 75.0) * 100.0
+                };
+                self.set_led_duty(brightness as u8).await;
             }
         }
     }
@@ -128,18 +242,9 @@ impl<'d> PowerManager<'d> {
             defmt::info!("Button event received: {:?}", event);
             match event {
                 InputEvent::LongReleased => {
-                    defmt::info!("Power button long press released - switching state");
-                    // PB8长按释放，切换电源状态
-                    let new_state = match self.state {
-                        PowerState::Standby => PowerState::Working,
-                        PowerState::Working => PowerState::Standby,
-                    };
-                    defmt::info!(
-                        "Triggering power state change from {:?} to {:?}",
-                        self.state,
-                        new_state
-                    );
-                    self.set_state(new_state).await;
+                    defmt::info!("Power button long press released - toggling system state");
+                    // PB8长按释放，切换系统状态
+                    self.toggle_system_state().await;
                 }
                 _ => {
                     defmt::info!("Other button event: {:?}, ignoring", event);
@@ -147,17 +252,23 @@ impl<'d> PowerManager<'d> {
             }
         }
 
-        // 更新呼吸灯效果（仅在待机状态）
-        self.update_breathing_led().await;
+        // 每个tick都更新LED状态，确保状态同步
+        self.update_led_state().await;
+
+        // 更新LED显示
+        self.update_led_display().await;
 
         // 定期状态报告（每5秒一次）
         self.tick_counter += 1;
         if self.tick_counter % 250 == 0 {
             // 250 * 20ms = 5秒
             defmt::info!(
-                "PowerManager status: State={:?}, Phase={}, Tick={}",
-                self.state,
-                self.breathing_phase,
+                "PowerManager status: State={:?}, LED={:?}, VIN={}V, VBUS={}V, VBUS_EN={}, Tick={}",
+                self.system_state,
+                self.led_state,
+                self.current_vin_voltage,
+                self.current_vbus_voltage,
+                self.current_vbus_enabled,
                 self.tick_counter
             );
         }

@@ -45,7 +45,7 @@ pub(crate) type SharedI2cBus = Mutex<CriticalSectionRawMutex, I2cBus>;
 
 pub(crate) const INPUT_CAP: usize = 2;
 pub(crate) const INPUT_PUB: usize = 1;
-pub(crate) const INPUT_SUB: usize = 1;
+pub(crate) const INPUT_SUB: usize = 2;
 
 pub(crate) type InputSubscriber<'d> =
     pubsub::Subscriber<'d, CriticalSectionRawMutex, InputEvent, INPUT_CAP, INPUT_SUB, INPUT_PUB>;

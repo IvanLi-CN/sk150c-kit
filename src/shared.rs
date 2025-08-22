@@ -35,3 +35,15 @@ pub(crate) static PD_ERROR_CHANNEL: Channel<
     Arc<usbpd::sink::policy_engine::Error>,
     1,
 > = Channel::new();
+
+// VBUS 电压状态通道
+pub(crate) static VBUS_VOLTAGE_CHANNEL: Watch<CriticalSectionRawMutex, f64, 1> = Watch::new();
+
+// VIN 电压状态通道
+pub(crate) static VIN_VOLTAGE_CHANNEL: Watch<CriticalSectionRawMutex, f64, 1> = Watch::new();
+
+// VBUS 开关状态通道
+pub(crate) static VBUS_STATE_CHANNEL: Watch<CriticalSectionRawMutex, bool, 1> = Watch::new();
+
+// VBUS 重置信号通道
+pub(crate) static VBUS_RESET_CHANNEL: Watch<CriticalSectionRawMutex, bool, 1> = Watch::new();

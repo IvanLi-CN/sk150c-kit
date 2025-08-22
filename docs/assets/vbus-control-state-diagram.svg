@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="900" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Flat Design - No gradients, transparent background -->
+    <style>
+      /* Flat Design Styles for Light Background */
+      .state-box {
+        fill: #3b82f6;
+        stroke: #1e40af;
+        stroke-width: 2;
+        rx: 8;
+      }
+      .power-led-box {
+        fill: #f59e0b;
+        stroke: #d97706;
+        stroke-width: 2;
+        rx: 8;
+      }
+      .vbus-led-box {
+        fill: #8b5cf6;
+        stroke: #7c3aed;
+        stroke-width: 2;
+        rx: 8;
+      }
+      .transition-arrow {
+        stroke: #374151;
+        stroke-width: 2.5;
+        marker-end: url(#arrowhead);
+      }
+      .condition-text {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 11px;
+        font-weight: 500;
+        fill: #374151;
+      }
+      .condition-vin { fill: #2563eb; font-weight: 600; }
+      .condition-button { fill: #059669; font-weight: 600; }
+      .condition-vbus { fill: #dc2626; font-weight: 600; }
+      .state-text {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        fill: #ffffff;
+        text-anchor: middle;
+      }
+      .led-text {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        fill: #ffffff;
+      }
+      .label-bg {
+        fill: rgba(255,255,255,0.9);
+        stroke: #d1d5db;
+        stroke-width: 1;
+        rx: 4;
+      }
+      .title-text {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 20px;
+        font-weight: 700;
+        fill: #1f2937;
+      }
+      .power-led-breathing { fill: #f59e0b; }
+      .power-led-on { fill: #10b981; }
+      .power-led-off { fill: #6b7280; }
+      .vbus-led-green { fill: #10b981; }
+      .vbus-led-red { fill: #ef4444; }
+      .vbus-led-off { fill: #6b7280; }
+      .legend-text {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 12px;
+        font-weight: 500;
+        fill: #374151;
+      }
+      .legend-title {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 16px;
+        font-weight: 700;
+        fill: #1f2937;
+      }
+    </style>
+
+    <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0 0, 10 4, 0 8" fill="#374151" />
+    </marker>
+  </defs>
+
+  <!-- Transparent Background - No background element needed -->
+
+  <!-- Title -->
+  <text x="700" y="40" text-anchor="middle" class="title-text">SK150C Kit Complete System State Machine</text>
+
+  <!-- Main System States -->
+  <!-- STANDBY State -->
+  <rect x="120" y="80" width="200" height="100" class="state-box"/>
+  <text x="220" y="115" class="state-text">STANDBY</text>
+  <text x="220" y="135" text-anchor="middle" class="condition-text">System Idle</text>
+  <text x="220" y="155" text-anchor="middle" class="condition-text">VBUS Disabled</text>
+
+  <!-- WORKING + VBUS_DISABLED State -->
+  <rect x="480" y="240" width="200" height="100" class="state-box"/>
+  <text x="580" y="270" class="state-text">WORKING</text>
+  <text x="580" y="290" text-anchor="middle" class="condition-text">VBUS DISABLED</text>
+  <text x="580" y="310" text-anchor="middle" class="condition-text">Ready for Toggle</text>
+
+  <!-- WORKING + VBUS_ENABLED State -->
+  <rect x="800" y="240" width="200" height="100" class="state-box"/>
+  <text x="900" y="270" class="state-text">WORKING</text>
+  <text x="900" y="290" text-anchor="middle" class="condition-text">VBUS ENABLED</text>
+  <text x="900" y="310" text-anchor="middle" class="condition-text">Power Delivery Active</text>
+
+  <!-- Power LED States (PA8 - POWER_LED) -->
+  <text x="200" y="420" text-anchor="middle" class="legend-title">Power LED (PA8)</text>
+
+  <!-- POWER_LED_BREATHING -->
+  <rect x="120" y="440" width="160" height="70" class="power-led-box"/>
+  <circle cx="150" cy="465" r="8" class="power-led-breathing"/>
+  <text x="175" y="465" class="led-text">BREATHING</text>
+  <text x="175" y="485" text-anchor="start" class="condition-text">Standby Mode</text>
+
+  <!-- POWER_LED_ON -->
+  <rect x="320" y="440" width="160" height="70" class="power-led-box"/>
+  <circle cx="350" cy="465" r="8" class="power-led-on"/>
+  <text x="375" y="465" class="led-text">SOLID ON</text>
+  <text x="375" y="485" text-anchor="start" class="condition-text">Working+VBUS On</text>
+
+  <!-- POWER_LED_OFF -->
+  <rect x="520" y="440" width="160" height="70" class="power-led-box"/>
+  <circle cx="550" cy="465" r="8" class="power-led-off"/>
+  <text x="575" y="465" class="led-text">OFF</text>
+  <text x="575" y="485" text-anchor="start" class="condition-text">Working+VBUS Off</text>
+
+  <!-- VBUS LED States (PB5 - VBUS_LED) -->
+  <text x="900" y="420" text-anchor="middle" class="legend-title">VBUS LED (PB5)</text>
+
+  <!-- VBUS_LED_GREEN_BLINK -->
+  <rect x="750" y="440" width="160" height="70" class="vbus-led-box"/>
+  <circle cx="780" cy="465" r="8" class="vbus-led-green"/>
+  <text x="805" y="460" class="led-text">GREEN</text>
+  <text x="805" y="475" text-anchor="start" class="condition-text">Blink &lt;5.5V</text>
+
+  <!-- VBUS_LED_GREEN_SOLID -->
+  <rect x="950" y="440" width="160" height="70" class="vbus-led-box"/>
+  <circle cx="980" cy="465" r="8" class="vbus-led-green"/>
+  <text x="1005" y="460" class="led-text">GREEN</text>
+  <text x="1005" y="475" text-anchor="start" class="condition-text">Solid &lt;5.5V</text>
+
+  <!-- VBUS_LED_RED_BLINK -->
+  <rect x="750" y="530" width="160" height="70" class="vbus-led-box"/>
+  <circle cx="780" cy="555" r="8" class="vbus-led-red"/>
+  <text x="805" y="550" class="led-text">RED</text>
+  <text x="805" y="565" text-anchor="start" class="condition-text">Blink ≥5.5V</text>
+
+  <!-- VBUS_LED_RED_SOLID -->
+  <rect x="950" y="530" width="160" height="70" class="vbus-led-box"/>
+  <circle cx="980" cy="555" r="8" class="vbus-led-red"/>
+  <text x="1005" y="550" class="led-text">RED</text>
+  <text x="1005" y="565" text-anchor="start" class="condition-text">Solid ≥5.5V</text>
+
+  <!-- Main State Transitions -->
+  <!-- STANDBY to WORKING+VBUS_DISABLED -->
+  <line x1="320" y1="150" x2="480" y2="270" class="transition-arrow"/>
+  <rect x="370" y="200" width="120" height="18" class="label-bg"/>
+  <text x="380" y="212" class="condition-text condition-button">Long Press (1.5s)</text>
+
+  <!-- WORKING+VBUS_DISABLED to STANDBY -->
+  <line x1="480" y1="270" x2="320" y2="170" class="transition-arrow"/>
+  <rect x="370" y="230" width="120" height="18" class="label-bg"/>
+  <text x="380" y="242" class="condition-text condition-button">Long Press (1.5s)</text>
+
+  <!-- WORKING+VBUS_DISABLED to WORKING+VBUS_ENABLED -->
+  <line x1="680" y1="290" x2="800" y2="290" class="transition-arrow"/>
+  <rect x="720" y="278" width="80" height="18" class="label-bg"/>
+  <text x="730" y="290" class="condition-text condition-button">Short Press</text>
+
+  <!-- WORKING+VBUS_ENABLED to WORKING+VBUS_DISABLED -->
+  <line x1="800" y1="310" x2="680" y2="310" class="transition-arrow"/>
+  <rect x="720" y="318" width="80" height="18" class="label-bg"/>
+  <text x="730" y="330" class="condition-text condition-button">Short Press</text>
+
+  <!-- WORKING+VBUS_ENABLED to STANDBY -->
+  <path d="M 900 240 Q 600 120 320 150" fill="none" class="transition-arrow"/>
+  <rect x="550" y="150" width="120" height="18" class="label-bg"/>
+  <text x="560" y="162" class="condition-text condition-button">Long Press (1.5s)</text>
+
+  <!-- Power LED Connections -->
+  <!-- STANDBY to POWER_LED_BREATHING -->
+  <line x1="220" y1="180" x2="200" y2="440" class="transition-arrow" stroke-dasharray="6,3" stroke="#d97706"/>
+
+  <!-- WORKING+VBUS_ENABLED to POWER_LED_ON -->
+  <line x1="900" y1="340" x2="400" y2="440" class="transition-arrow" stroke-dasharray="6,3" stroke="#d97706"/>
+  <rect x="600" y="380" width="150" height="18" class="label-bg"/>
+  <text x="610" y="392" class="condition-text" style="fill:#d97706; font-weight:600;">Working + VBUS On</text>
+
+  <!-- WORKING+VBUS_DISABLED to POWER_LED_OFF -->
+  <line x1="580" y1="340" x2="600" y2="440" class="transition-arrow" stroke-dasharray="6,3" stroke="#d97706"/>
+  <rect x="570" y="380" width="120" height="18" class="label-bg"/>
+  <text x="580" y="392" class="condition-text" style="fill:#d97706; font-weight:600;">Working + VBUS Off</text>
+
+  <!-- VBUS LED Connections -->
+  <!-- VBUS_DISABLED connections -->
+  <line x1="550" y1="340" x2="830" y2="440" class="transition-arrow" stroke-dasharray="4,2" stroke="#7c3aed"/>
+  <rect x="650" y="380" width="120" height="18" class="label-bg"/>
+  <text x="660" y="392" class="condition-text condition-vbus">VBUS &lt; 5.5V</text>
+
+  <line x1="610" y1="340" x2="830" y2="530" class="transition-arrow" stroke-dasharray="4,2" stroke="#7c3aed"/>
+  <rect x="680" y="420" width="120" height="18" class="label-bg"/>
+  <text x="690" y="432" class="condition-text condition-vbus">VBUS ≥ 5.5V</text>
+
+  <!-- VBUS_ENABLED connections -->
+  <line x1="870" y1="340" x2="1030" y2="440" class="transition-arrow" stroke-dasharray="4,2" stroke="#7c3aed"/>
+  <rect x="920" y="380" width="120" height="18" class="label-bg"/>
+  <text x="930" y="392" class="condition-text condition-vbus">VBUS &lt; 5.5V</text>
+
+  <line x1="930" y1="340" x2="1030" y2="530" class="transition-arrow" stroke-dasharray="4,2" stroke="#7c3aed"/>
+  <rect x="950" y="420" width="120" height="18" class="label-bg"/>
+  <text x="960" y="432" class="condition-text condition-vbus">VBUS ≥ 5.5V</text>
+
+  <!-- Legend -->
+  <rect x="100" y="650" width="1200" height="180" fill="rgba(255,255,255,0.95)" stroke="#d1d5db" stroke-width="2" rx="8"/>
+  <text x="130" y="680" class="legend-title">Legend</text>
+
+  <!-- Legend Items -->
+  <line x1="130" y1="700" x2="180" y2="700" class="transition-arrow"/>
+  <text x="190" y="705" class="legend-text">Main State Transition</text>
+
+  <line x1="130" y1="720" x2="180" y2="720" class="transition-arrow" stroke-dasharray="6,3" stroke="#d97706"/>
+  <text x="190" y="725" class="legend-text">Power LED Connection</text>
+
+  <line x1="130" y1="740" x2="180" y2="740" class="transition-arrow" stroke-dasharray="4,2" stroke="#7c3aed"/>
+  <text x="190" y="745" class="legend-text">VBUS LED Connection</text>
+
+  <!-- Color Coding Legend -->
+  <text x="400" y="705" class="legend-text condition-button">■ Button Operations (Green)</text>
+  <text x="400" y="725" class="legend-text condition-vbus">■ VBUS Thresholds (Red)</text>
+  <text x="400" y="745" class="legend-text" style="fill:#2563eb; font-weight:600;">■ System States (Blue)</text>
+
+  <!-- LED Systems -->
+  <text x="700" y="705" class="legend-text" style="fill:#d97706; font-weight:600;">■ Power LED (PA8)</text>
+  <text x="700" y="725" class="legend-text" style="fill:#7c3aed; font-weight:600;">■ VBUS LED (PB5)</text>
+
+  <!-- Detailed Explanations -->
+  <text x="130" y="770" class="legend-text">• Power LED: Breathing in Standby mode, Solid when Working+VBUS on, Off when Working+VBUS off</text>
+  <text x="130" y="790" class="legend-text">• VBUS LED: Color by voltage (&lt;5.5V=Green, ≥5.5V=Red), Pattern by state (Disabled=Blink, Enabled=Solid)</text>
+  <text x="130" y="810" class="legend-text">• Short Press: Toggle VBUS | Long Press: Toggle System Mode | VBUS Threshold: 5.5V</text>
+</svg>

@@ -43,7 +43,7 @@ impl<'a, const AVG_SIZE: usize> AdcReader<'a, AVG_SIZE> {
                 [
                     (&mut self.v_ref_int_ch, SampleTime::CYCLES640_5),
                     (&mut self.vout_sn_ch, SampleTime::CYCLES640_5),
-                    (&mut self.v_temp_ch, SampleTime::CYCLES247_5),
+                    (&mut self.v_temp_ch, SampleTime::CYCLES640_5), // 增加温度采样时间
                     (&mut self.vin_sn_ch, SampleTime::CYCLES640_5),
                 ]
                 .into_iter(),
@@ -98,7 +98,7 @@ impl<'a, const AVG_SIZE: usize> AdcReader<'a, AVG_SIZE> {
             v_ref_int_ch,
             buffer: [0; 4],
             cal,
-            ticker: Ticker::every(Duration::from_millis(6)),
+            ticker: Ticker::every(Duration::from_secs(1)),
 
             vout_sn_prev: 0.0,
             vin_sn_prev: 0.0,

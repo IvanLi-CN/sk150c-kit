@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1000" height="700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 20px; font-weight: bold; text-anchor: middle; fill: #1f2937; }
+      .subtitle { font-family: 'Segoe UI', Arial, sans-serif; font-size: 16px; font-weight: 600; text-anchor: middle; fill: #374151; }
+      .state { font-family: 'Segoe UI', Arial, sans-serif; font-size: 14px; font-weight: bold; text-anchor: middle; fill: white; }
+      .label { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; text-anchor: middle; fill: #374151; }
+      .pin-label { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; text-anchor: middle; fill: #374151; }
+      .arrow { stroke: #4b5563; stroke-width: 2.5; fill: none; marker-end: url(#arrowhead); }
+      .standby-box { fill: #10b981; stroke: #059669; stroke-width: 2; rx: 12; }
+      .working-box { fill: #3b82f6; stroke: #2563eb; stroke-width: 2; rx: 12; }
+      .hardware-box { fill: #f59e0b; stroke: #d97706; stroke-width: 2; rx: 8; }
+      .button-box { fill: #8b5cf6; stroke: #7c3aed; stroke-width: 2; rx: 8; }
+      .led-box { fill: #ef4444; stroke: #dc2626; stroke-width: 2; rx: 8; }
+      .vbus-box { fill: #06b6d4; stroke: #0891b2; stroke-width: 2; rx: 8; }
+      .logic-box { fill: #f3f4f6; stroke: #d1d5db; stroke-width: 1; rx: 8; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0 0, 10 4, 0 8" fill="#4b5563" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="500" y="35" class="title">SK150C Kit 电源管理系统</text>
+
+  <!-- System Start -->
+  <circle cx="500" cy="80" r="25" fill="#e5e7eb" stroke="#9ca3af" stroke-width="2"/>
+  <text x="500" y="87" class="label" style="font-weight: 600;">系统启动</text>
+
+  <!-- Arrow to Standby -->
+  <line x1="500" y1="105" x2="500" y2="140" class="arrow"/>
+
+  <!-- Standby State -->
+  <rect x="350" y="150" width="300" height="100" class="standby-box"/>
+  <text x="500" y="180" class="state">待机模式</text>
+  <text x="500" y="200" class="label" style="fill: white; font-weight: 500;">• 电源LED: 呼吸效果 (3秒周期)</text>
+  <text x="500" y="220" class="label" style="fill: white; font-weight: 500;">• VIN开关: 断开 (PA15=HIGH)</text>
+  <text x="500" y="240" class="label" style="fill: white; font-weight: 500;">• VBUS: 禁用</text>
+
+  <!-- Working State -->
+  <rect x="350" y="320" width="300" height="100" class="working-box"/>
+  <text x="500" y="350" class="state">工作模式</text>
+  <text x="500" y="370" class="label" style="fill: white; font-weight: 500;">• 电源LED: 常亮/熄灭 (取决于VBUS)</text>
+  <text x="500" y="390" class="label" style="fill: white; font-weight: 500;">• VIN开关: 闭合 (PA15=LOW)</text>
+  <text x="500" y="410" class="label" style="fill: white; font-weight: 500;">• VBUS: 可通过短按控制</text>
+
+  <!-- Long Press Button (Left) -->
+  <rect x="80" y="280" width="180" height="80" class="button-box"/>
+  <text x="170" y="310" class="state">长按</text>
+  <text x="170" y="330" class="label" style="fill: white; font-weight: 500;">PB8 按钮</text>
+  <text x="170" y="350" class="label" style="fill: white; font-weight: 500;">按住 ≥ 1.5秒</text>
+
+  <!-- Short Press Button (Right) -->
+  <rect x="740" y="280" width="180" height="80" class="vbus-box"/>
+  <text x="830" y="310" class="state">短按</text>
+  <text x="830" y="330" class="label" style="fill: white; font-weight: 500;">PB8 按钮</text>
+  <text x="830" y="350" class="label" style="fill: white; font-weight: 500;">切换VBUS开/关</text>
+
+  <!-- 90-degree angle connections with precise positioning -->
+
+  <!-- Long Press Button to Standby State -->
+  <path d="M 260 310 L 300 310 L 300 200 L 350 200" fill="none" class="arrow"/>
+  <rect x="270" y="250" width="70" height="16" fill="white" stroke="#d1d5db" stroke-width="1" rx="3"/>
+  <text x="305" y="261" class="label" style="font-size: 10px; font-weight: 600;">到待机</text>
+
+  <!-- Long Press Button to Working State -->
+  <path d="M 260 330 L 300 330 L 300 370 L 350 370" fill="none" class="arrow"/>
+  <rect x="270" y="340" width="70" height="16" fill="white" stroke="#d1d5db" stroke-width="1" rx="3"/>
+  <text x="305" y="351" class="label" style="font-size: 10px; font-weight: 600;">到工作</text>
+
+  <!-- Standby to Working (right side) -->
+  <path d="M 650 220 L 700 220 L 700 350 L 650 350" fill="none" class="arrow"/>
+  <rect x="680" y="280" width="70" height="16" fill="white" stroke="#d1d5db" stroke-width="1" rx="3"/>
+  <text x="715" y="291" class="label" style="font-size: 10px; font-weight: 600;">长按</text>
+
+  <!-- Working to Standby (right side) -->
+  <path d="M 650 390 L 720 390 L 720 180 L 650 180" fill="none" class="arrow"/>
+  <rect x="700" y="300" width="70" height="16" fill="white" stroke="#d1d5db" stroke-width="1" rx="3"/>
+  <text x="735" y="311" class="label" style="font-size: 10px; font-weight: 600;">长按</text>
+
+  <!-- Short Press Button to Working State (VBUS control) -->
+  <path d="M 740 340 L 700 340 L 700 380 L 650 380" fill="none" class="arrow"/>
+  <rect x="670" y="355" width="80" height="16" fill="white" stroke="#d1d5db" stroke-width="1" rx="3"/>
+  <text x="710" y="366" class="label" style="font-size: 10px; font-weight: 600;">VBUS切换</text>
+
+  <!-- Hardware Connections -->
+  <text x="500" y="480" class="subtitle">硬件引脚配置</text>
+
+  <!-- PB8 Button -->
+  <rect x="50" y="500" width="200" height="50" class="hardware-box"/>
+  <text x="150" y="520" class="pin-label" style="font-weight: 600;">PB8 - 电源按钮</text>
+  <text x="150" y="535" class="pin-label">高电平有效，防抖输入</text>
+
+  <!-- PA8 LED -->
+  <rect x="270" y="500" width="200" height="50" class="led-box"/>
+  <text x="370" y="520" class="pin-label" style="fill: white; font-weight: 600;">PA8 - 电源LED (TIM1_CH1)</text>
+  <text x="370" y="535" class="pin-label" style="fill: white;">开漏输出，PWM呼吸</text>
+
+  <!-- PA15 Power Switch -->
+  <rect x="490" y="500" width="200" height="50" class="hardware-box"/>
+  <text x="590" y="520" class="pin-label" style="font-weight: 600;">PA15 - VIN开关控制</text>
+  <text x="590" y="535" class="pin-label">低电平=闭合，高电平=断开</text>
+
+  <!-- PB7 VBUS Control -->
+  <rect x="710" y="500" width="200" height="50" class="vbus-box"/>
+  <text x="810" y="520" class="pin-label" style="fill: white; font-weight: 600;">PB7 - VBUS使能</text>
+  <text x="810" y="535" class="pin-label" style="fill: white;">高电平=启用，低电平=禁用</text>
+
+  <!-- LED State Logic -->
+  <text x="500" y="580" class="subtitle">电源LED状态逻辑</text>
+
+  <rect x="50" y="600" width="900" height="50" class="logic-box"/>
+  <text x="500" y="620" class="label" style="font-weight: 600;">• 待机: LED呼吸 (3秒周期) • 工作+VBUS关: LED熄灭 • 工作+VBUS开: LED常亮</text>
+  <text x="500" y="635" class="label">系统启动时进入待机模式。长按在待机↔工作间切换。工作模式下短按切换VBUS。</text>
+</svg>

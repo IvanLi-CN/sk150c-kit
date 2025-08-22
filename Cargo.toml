@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Ivan Li"]
 license = "MIT"
 description = "SK150C adjustable power supply module control firmware for STM32G431CBU6"
-repository = "https://github.com/your-username/sk150c-kit"
+repository = "https://github.com/ivanlipkovski/sk150c-kit"
 keywords = ["embedded", "stm32", "usb-pd", "power-supply", "no-std"]
 categories = ["embedded", "hardware-support"]
 
