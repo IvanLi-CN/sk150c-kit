@@ -6,18 +6,49 @@ This document provides a detailed development guide for developers of the SK150C
 
 ### 1. Environment Setup
 
-Ensure you have the required development tools installed:
+#### Prerequisites
 
-- Rust toolchain with `thumbv7em-none-eabihf` target
-- probe-rs for flashing and debugging
-- STM32CubeMX (optional, for hardware configuration)
+First, ensure you have the base development tools installed:
+
+- **Rust toolchain**: Install from [rustup.rs](https://rustup.rs/)
+- **Bun**: Install from [bun.sh](https://bun.sh/) (for JavaScript tools)
+- **Lefthook**: Install from [github.com/evilmartians/lefthook](https://github.com/evilmartians/lefthook)
+- **probe-rs**: For hardware debugging (optional but recommended)
+
+#### Automated Setup
+
+Use the provided setup script to configure your development environment:
+
+```bash
+# Run the development environment setup script
+./scripts/setup-dev.sh
+```
+
+This script will:
+
+- Check for required tools
+- Configure Rust toolchain (add target and components)
+- Install necessary cargo tools (cargo-binutils, cargo-bloat)
+- Set up git hooks with Lefthook
+- Verify the environment
+
+#### Manual Setup (Alternative)
+
+If you prefer manual setup or the script fails:
 
 ```bash
 # Install Rust target
 rustup target add thumbv7em-none-eabihf
 
-# Install probe-rs
+# Install Rust components
+rustup component add rustfmt clippy llvm-tools-preview
+
+# Install cargo tools
 cargo install probe-rs --features cli
+cargo install cargo-binutils cargo-bloat
+
+# Setup git hooks
+lefthook install
 ```
 
 ### 2. Build Project
