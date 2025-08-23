@@ -46,6 +46,7 @@ mod adc_reader;
 mod app_manager;
 mod button;
 mod config_manager;
+mod fan_manager;
 mod power;
 mod power_output;
 mod shared;
@@ -222,6 +223,10 @@ async fn main(spawner: Spawner) {
     let vbus_led_pin = Output::new(p.PB5, Level::Low, Speed::Low);
     defmt::info!("VBUS_LED pin PB5 configured");
 
+    // PB10: FAN_PWM2 (风扇控制) - 配置为GPIO输出，高电平启动风扇
+    let fan_control_pin = Output::new(p.PB10, Level::Low, Speed::Low);
+    defmt::info!("FAN_PWM2 pin PB10 configured as GPIO output");
+
     // PA8: POWER_LED (TIM1_CH1) - PWM 呼吸灯控制
     // 配置为开漏输出，低电平点亮LED
     use embassy_stm32::timer::simple_pwm::PwmPinConfig;
@@ -328,6 +333,12 @@ async fn main(spawner: Spawner) {
     // 启动 VBUS ADC 监控任务
     spawner.spawn(vbus_adc_task()).unwrap();
 
+    // 创建风扇管理器并启动任务
+    let temperature_rx = shared::TEMPERATURE_CHANNEL.receiver().unwrap();
+    let fan_manager = fan_manager::FanManager::new(fan_control_pin, temperature_rx);
+    spawner.spawn(fan_task(fan_manager)).unwrap();
+    defmt::info!("Fan management task started");
+
     // 运行系统状态机测试
     defmt::info!("Running system state machine tests...");
     let test_result = crate::tests::system_state_tests::run_all_tests();
@@ -427,6 +438,8 @@ async fn adc_task() {
     loop {
         if let Some(values) = adc_reader.poll().await {
             ADC_PUBSUB.publish_immediate((values.0, values.1));
+            // 发布温度数据到温度通道
+            shared::TEMPERATURE_CHANNEL.sender().send(values.2);
             // ADC日志已删除，避免刷屏
         }
     }
@@ -449,4 +462,12 @@ async fn config_task(mut config_manager: ConfigManager) {
 #[embassy_executor::task]
 async fn pd_task(mut pd_service: PowerInput<'static, UCPD1, Irqs, PB6, PB4, DMA2_CH4, DMA2_CH5>) {
     pd_service.run().await;
+}
+
+#[embassy_executor::task]
+async fn fan_task(mut fan_manager: fan_manager::FanManager<'static>) {
+    loop {
+        fan_manager.tick().await;
+        embassy_time::Timer::after_secs(5).await; // 5秒检查一次，与ADC采样同步
+    }
 }

@@ -8,9 +8,6 @@ use crate::{button::InputEvent, power_output::PowerOutput, InputSubscriber};
 /// VBUS 电压阈值 (5.5V)
 const VBUS_VOLTAGE_THRESHOLD: f64 = 5.5;
 
-/// VIN 电压阈值 (5.0V) - 低于此值时系统进入 VIN_OFF 状态
-const VIN_VOLTAGE_THRESHOLD: f64 = 5.0;
-
 /// VBUS 管理器状态
 #[derive(Debug, Clone, Copy, PartialEq, defmt::Format)]
 pub enum VbusState {
@@ -193,9 +190,6 @@ impl<'d> VbusManager<'d> {
         // 检查VBUS重置信号
         self.check_vbus_reset().await;
 
-        // 检查 VIN 状态并处理重置逻辑
-        self.check_vin_status().await;
-
         // 更新 LED 状态
         self.update_led_display().await;
 
@@ -216,21 +210,6 @@ impl<'d> VbusManager<'d> {
 
         // 添加小延迟
         Timer::after_millis(20).await; // 50Hz更新频率
-    }
-
-    /// 检查 VIN 状态并处理重置逻辑
-    async fn check_vin_status(&mut self) {
-        if self.current_vin_voltage < VIN_VOLTAGE_THRESHOLD {
-            // VIN 电压过低，强制重置 VBUS 状态为关闭
-            if self.vbus_state != VbusState::Disabled {
-                defmt::warn!(
-                    "VIN voltage too low ({}V < {}V), forcing VBUS OFF",
-                    self.current_vin_voltage,
-                    VIN_VOLTAGE_THRESHOLD
-                );
-                self.set_vbus_state(VbusState::Disabled).await;
-            }
-        }
     }
 
     /// 更新 LED 显示状态

@@ -98,7 +98,7 @@ impl<'a, const AVG_SIZE: usize> AdcReader<'a, AVG_SIZE> {
             v_ref_int_ch,
             buffer: [0; 4],
             cal,
-            ticker: Ticker::every(Duration::from_secs(1)),
+            ticker: Ticker::every(Duration::from_secs(5)),
 
             vout_sn_prev: 0.0,
             vin_sn_prev: 0.0,

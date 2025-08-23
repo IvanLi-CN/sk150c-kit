@@ -47,3 +47,6 @@ pub(crate) static VBUS_STATE_CHANNEL: Watch<CriticalSectionRawMutex, bool, 1> = 
 
 // VBUS 重置信号通道
 pub(crate) static VBUS_RESET_CHANNEL: Watch<CriticalSectionRawMutex, bool, 1> = Watch::new();
+
+// 温度数据通道
+pub(crate) static TEMPERATURE_CHANNEL: Watch<CriticalSectionRawMutex, f64, 1> = Watch::new();
