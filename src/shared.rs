@@ -4,8 +4,8 @@ use crate::{
 };
 use alloc::sync::Arc;
 use embassy_sync::{
-    blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, pubsub::PubSubChannel,
-    watch::Watch,
+    blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, mutex::Mutex,
+    pubsub::PubSubChannel, watch::Watch,
 };
 
 #[allow(dead_code)]
@@ -50,3 +50,12 @@ pub(crate) static VBUS_RESET_CHANNEL: Watch<CriticalSectionRawMutex, bool, 1> = 
 
 // 温度数据通道
 pub(crate) static TEMPERATURE_CHANNEL: Watch<CriticalSectionRawMutex, f64, 1> = Watch::new();
+
+// 风扇转速相关常量
+pub const FAN_TIMER_FREQ_HZ: u32 = 1_000_000; // 1MHz 定时器频率
+pub const FAN_PULSES_PER_REVOLUTION: u32 = 2; // 风扇每转脉冲数
+pub const FAN_MAX_DETECTION_TIME_MS: u64 = 5000; // 最高转速检测时间（毫秒）
+
+// 风扇转速数据存储
+pub(crate) static MAX_FAN_RPM: Mutex<CriticalSectionRawMutex, u32> = Mutex::new(0);
+pub(crate) static CURRENT_FAN_RPM: Watch<CriticalSectionRawMutex, u32, 1> = Watch::new();

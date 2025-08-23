@@ -339,6 +339,10 @@ async fn main(spawner: Spawner) {
     spawner.spawn(fan_task(fan_manager)).unwrap();
     defmt::info!("Fan management task started");
 
+    // 启动风扇转速采样任务
+    spawner.spawn(fan_speed_task(p.TIM3, p.PA6)).unwrap();
+    defmt::info!("Fan speed sampling task started");
+
     // 运行系统状态机测试
     defmt::info!("Running system state machine tests...");
     let test_result = crate::tests::system_state_tests::run_all_tests();
@@ -470,4 +474,12 @@ async fn fan_task(mut fan_manager: fan_manager::FanManager<'static>) {
         fan_manager.tick().await;
         embassy_time::Timer::after_secs(5).await; // 5秒检查一次，与ADC采样同步
     }
+}
+
+#[embassy_executor::task]
+async fn fan_speed_task(
+    tim3: embassy_stm32::Peri<'static, peripherals::TIM3>,
+    fan_touch_pin: embassy_stm32::Peri<'static, peripherals::PA6>,
+) {
+    fan_manager::fan_speed_sampling_task(tim3, fan_touch_pin).await;
 }
