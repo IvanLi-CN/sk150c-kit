@@ -11,6 +11,10 @@ The SK150C kit implements a complete control solution for adjustable power suppl
 - Input and control PCB
 - MCU firmware
 
+## Product Overview
+
+![SK150C Kit Finished Product](docs/assets/finished-product.jpeg)
+
 ## Hardware Features
 
 - **MCU**: STM32G431CBU6

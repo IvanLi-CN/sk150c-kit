@@ -42,7 +42,6 @@ Thumbs.db
 .env
 .env.local
 
-# Chinese documentation (keep local, not committed to open source repo)
-*.zh.md
+
 
 .augment
