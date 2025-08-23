@@ -61,13 +61,13 @@ libm = "0.2.15"
 # cargo build/run
 [profile.dev]
 codegen-units = 1
-debug = 0               # 完全关闭调试信息
-debug-assertions = false # 关闭调试断言以减少代码大小
+debug = 0               # Disable debug info completely
+debug-assertions = false # Disable debug assertions to reduce code size
 incremental = false
-opt-level = "z"         # 优化代码大小
-overflow-checks = false # 关闭溢出检查
-lto = "fat"             # 启用完整链接时优化
-panic = "abort"         # 使用 abort 而不是 unwind
+opt-level = "z"         # Optimize for code size
+overflow-checks = false # Disable overflow checks
+lto = "fat"             # Enable full link-time optimization
+panic = "abort"         # Use abort instead of unwind
 
 # cargo test
 [profile.test]

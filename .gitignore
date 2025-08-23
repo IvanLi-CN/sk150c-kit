@@ -1,48 +1,48 @@
-# Rust 构建产物
+# Rust build artifacts
 debug/
 target/
 Cargo.lock
 
-# IDE 配置
+# IDE configuration
 /.idea
 .vscode/settings.json.bak
 
-# 操作系统文件
+# OS files
 .DS_Store
 Thumbs.db
 
-# FreeCAD 备份文件
+# FreeCAD backup files
 *.FCBak
 *.FCStd1
 
-# 临时文件
+# Temporary files
 *.tmp
 *.temp
 *~
 
-# 日志文件
+# Log files
 *.log
 
-# 编译器输出
+# Compiler output
 *.o
 *.so
 *.dylib
 *.dll
 
-# 调试文件
+# Debug files
 *.pdb
 
-# 文档生成
+# Documentation generation
 /doc/
 
-# 测试覆盖率
+# Test coverage
 /coverage/
 
-# 环境变量文件
+# Environment variable files
 .env
 .env.local
 
-# 中文文档（保留本地，不提交到开源仓库）
+# Chinese documentation (keep local, not committed to open source repo)
 *.zh.md
 
 .augment

@@ -36,26 +36,26 @@ pub(crate) static PD_ERROR_CHANNEL: Channel<
     1,
 > = Channel::new();
 
-// VBUS 电压状态通道
+// VBUS voltage status channel
 pub(crate) static VBUS_VOLTAGE_CHANNEL: Watch<CriticalSectionRawMutex, f64, 1> = Watch::new();
 
-// VIN 电压状态通道
+// VIN voltage status channel
 pub(crate) static VIN_VOLTAGE_CHANNEL: Watch<CriticalSectionRawMutex, f64, 1> = Watch::new();
 
-// VBUS 开关状态通道
+// VBUS switch status channel
 pub(crate) static VBUS_STATE_CHANNEL: Watch<CriticalSectionRawMutex, bool, 1> = Watch::new();
 
-// VBUS 重置信号通道
+// VBUS reset signal channel
 pub(crate) static VBUS_RESET_CHANNEL: Watch<CriticalSectionRawMutex, bool, 1> = Watch::new();
 
-// 温度数据通道
+// Temperature data channel
 pub(crate) static TEMPERATURE_CHANNEL: Watch<CriticalSectionRawMutex, f64, 1> = Watch::new();
 
-// 风扇转速相关常量
-pub const FAN_TIMER_FREQ_HZ: u32 = 1_000_000; // 1MHz 定时器频率
-pub const FAN_PULSES_PER_REVOLUTION: u32 = 2; // 风扇每转脉冲数
-pub const FAN_MAX_DETECTION_TIME_MS: u64 = 5000; // 最高转速检测时间（毫秒）
+// Fan speed related constants
+pub const FAN_TIMER_FREQ_HZ: u32 = 1_000_000; // 1MHz timer frequency
+pub const FAN_PULSES_PER_REVOLUTION: u32 = 2; // Fan pulses per revolution
+pub const FAN_MAX_DETECTION_TIME_MS: u64 = 5000; // Max speed detection time (milliseconds)
 
-// 风扇转速数据存储
+// Fan speed data storage
 pub(crate) static MAX_FAN_RPM: Mutex<CriticalSectionRawMutex, u32> = Mutex::new(0);
 pub(crate) static CURRENT_FAN_RPM: Watch<CriticalSectionRawMutex, u32, 1> = Watch::new();

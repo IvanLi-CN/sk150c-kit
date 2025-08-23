@@ -1,10 +1,9 @@
 # Markdownlint configuration for sk150c-kit project
-# Optimized for both English and Chinese documentation
 
 # Global configuration
 config:
-  # Disable overly strict rules for better Chinese content support
-  MD013: false  # Line length - disabled for Chinese content
+  # Disable overly strict rules for better content support
+  MD013: false  # Line length - disabled for content flexibility
   MD033: false  # Inline HTML - allow HTML in markdown
   MD041: false  # First line in file should be a top level heading - allow flexibility
   

@@ -319,5 +319,3 @@ make flash
 This project is licensed under the MIT License, see [LICENSE](LICENSE) file for details.
 
 ---
-
-*For Chinese documentation, see DEVELOPER_GUIDE.zh.md*

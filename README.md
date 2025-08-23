@@ -218,7 +218,3 @@ The project includes complete hardware design files in the `models/` directory:
 For detailed information about the hardware design, see [models/README.md](models/README.md).
 
 ---
-
-## Additional Documentation
-
-For Chinese documentation, see README.zh.md
