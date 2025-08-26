@@ -154,7 +154,7 @@ impl<'d> PowerManager<'d> {
         let max_duty = pwm.get_max_duty();
         // 计算实际占空比值，注意开漏输出是反向的（100% - duty_percent）
         let actual_duty = max_duty * (100 - duty_percent as u32) / 100;
-        pwm.set_duty(Channel::Ch1, actual_duty as u32);
+        pwm.set_duty(Channel::Ch1, actual_duty);
         // LED占空比已设置，不再打印日志以减少输出
     }
 

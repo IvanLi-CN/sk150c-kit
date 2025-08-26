@@ -59,6 +59,7 @@ pub async fn usb_task(driver: usb::Driver<'static, peripherals::USB>) {
 
     join(usb_fut, echo_fut).await;
 }
+#[allow(dead_code)]
 struct Disconnected {}
 
 impl From<EndpointError> for Disconnected {
