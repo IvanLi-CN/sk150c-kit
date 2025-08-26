@@ -111,13 +111,11 @@ The current models have been validated for 3D printing using ABS material.
 
 ## Related Files
 
-- Project documentation: `../README.md`
-- Compatible adjustable power supply product manual: `../docs/SK150C-Digital-Power-Supply-Manual.pdf`
+- Project documentation: [../README.md](../README.md)
+- Compatible adjustable power supply product manual: [../docs/SK150C-Digital-Power-Supply-Manual.pdf](../docs/SK150C-Digital-Power-Supply-Manual.pdf)
 
 ## Copyright Information
 
 These design files are part of the SK150C Kit project. Please follow the project license for usage.
 
 ---
-
-*Last updated: August 2025*
