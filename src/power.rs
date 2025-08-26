@@ -14,15 +14,11 @@ use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex, channel, mutex::Mutex, signal::Signal, watch,
 };
 use embassy_time::{with_timeout, Duration, Timer};
-use uom::si::{
-    electric_current::milliampere,
-    electric_potential::{millivolt, volt},
-};
+
 use usbpd::{
     protocol_layer::message::{
         pdo::SourceCapabilities,
         request::{CurrentRequest, PowerSource, VoltageRequest},
-        units::{ElectricCurrent, ElectricPotential},
     },
     sink::{self, device_policy_manager::DevicePolicyManager},
     timers::Timer as SinkTimer,
@@ -120,41 +116,6 @@ struct EmbassySinkTimer {}
 impl SinkTimer for EmbassySinkTimer {
     async fn after_millis(milliseconds: u64) {
         Timer::after_millis(milliseconds).await
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct TargetPower {
-    pub voltage: ElectricPotential,
-    pub current: ElectricCurrent,
-}
-
-impl Clone for TargetPower {
-    fn clone(&self) -> Self {
-        Self {
-            voltage: self.voltage,
-            current: self.current,
-        }
-    }
-}
-
-impl defmt::Format for TargetPower {
-    fn format(&self, fmt: defmt::Formatter) {
-        defmt::write!(
-            fmt,
-            "{} mA @ {} mV",
-            self.current.get::<milliampere>(),
-            self.voltage.get::<millivolt>()
-        );
-    }
-}
-
-impl Default for TargetPower {
-    fn default() -> Self {
-        Self {
-            voltage: ElectricPotential::new::<volt>(5),
-            current: ElectricCurrent::new::<milliampere>(500),
-        }
     }
 }
 
