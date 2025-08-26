@@ -10,7 +10,6 @@ mod tests;
 
 pub use button_internal::ButtonInternal;
 pub use real_impl::{RealButtonPin, RealTimeProvider};
-pub use traits::{ButtonPin, TimeProvider};
 
 use alloc::sync::Arc;
 use embassy_stm32::exti::ExtiInput;
@@ -30,7 +29,7 @@ pub enum InputEvent {
 }
 
 // 重新导出内部类型供外部使用
-pub use button_internal::{ButtonEvent, ButtonState};
+pub use button_internal::ButtonEvent;
 
 // 类型别名，使用真实硬件实现
 type RealButtonInternal = ButtonInternal<RealTimeProvider, RealButtonPin>;

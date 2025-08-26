@@ -1,4 +1,4 @@
-use embassy_time::{Duration, Instant};
+use embassy_time::Instant;
 
 /// 时间提供者抽象接口
 /// 用于抽象时间相关操作，支持在测试中模拟时间流逝
@@ -8,12 +8,6 @@ pub trait TimeProvider: Send + Sync {
 
     /// 异步等待直到指定时间点
     async fn sleep_until(&self, deadline: Instant);
-
-    /// 异步等待指定时长
-    async fn sleep_for(&self, duration: Duration) {
-        let deadline = self.now() + duration;
-        self.sleep_until(deadline).await;
-    }
 }
 
 /// 按键引脚抽象接口
@@ -27,9 +21,4 @@ pub trait ButtonPin: Send + Sync {
 
     /// 检查按键当前是否为高电平（是否按下）
     fn is_high(&self) -> bool;
-
-    /// 检查按键当前是否为低电平（是否释放）
-    fn is_low(&self) -> bool {
-        !self.is_high()
-    }
 }

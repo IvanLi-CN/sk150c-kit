@@ -9,7 +9,6 @@ use crate::vbus_manager::VbusState;
 pub struct SystemStateTestSuite {
     system_state: SystemState,
     vbus_state: VbusState,
-    test_counter: u32,
 }
 
 impl SystemStateTestSuite {
@@ -17,7 +16,6 @@ impl SystemStateTestSuite {
         Self {
             system_state: SystemState::Standby,
             vbus_state: VbusState::Disabled,
-            test_counter: 0,
         }
     }
 
@@ -324,7 +322,8 @@ pub fn test_led_state_sync_bug_fix() -> bool {
 pub fn run_all_tests() -> bool {
     defmt::info!("🚀 Starting System State Machine Test Suite");
 
-    let tests: [(&str, fn() -> bool); 5] = [
+    type TestCase = (&'static str, fn() -> bool);
+    let tests: [TestCase; 5] = [
         ("Basic State Transitions", test_basic_state_transitions),
         (
             "VBUS Reset on VIN Re-enable",

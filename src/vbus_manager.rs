@@ -99,22 +99,6 @@ impl<'d> VbusManager<'d> {
         self.current_vin_voltage = vin_voltage;
     }
 
-    /// 处理输入事件（用于测试）
-    pub async fn handle_input_event(&mut self, event: Option<InputEvent>) {
-        if let Some(event) = event {
-            defmt::info!("VBUS: Button event received: {:?}", event);
-            match event {
-                InputEvent::Click => {
-                    defmt::info!("VBUS: Short press detected - toggling VBUS state");
-                    self.toggle_vbus().await;
-                }
-                _ => {
-                    defmt::info!("VBUS: Other button event: {:?}, ignoring", event);
-                }
-            }
-        }
-    }
-
     /// 设置 VBUS 开关状态
     async fn set_vbus_state(&mut self, new_state: VbusState) {
         if self.vbus_state != new_state {

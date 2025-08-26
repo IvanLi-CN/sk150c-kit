@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use embassy_stm32::exti::ExtiInput;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
-use embassy_time::{Duration, Instant, Timer};
+use embassy_time::{Instant, Timer};
 
 use super::traits::{ButtonPin, TimeProvider};
 

@@ -161,16 +161,6 @@ impl<'d> FanManager<'d> {
             }
         }
     }
-
-    /// Get current fan status
-    pub fn is_fan_enabled(&self) -> bool {
-        self.fan_enabled
-    }
-
-    /// Get current temperature
-    pub fn current_temperature(&self) -> f64 {
-        self.current_temperature
-    }
 }
 
 /// Calculate fan speed (RPM)
@@ -283,20 +273,4 @@ pub async fn fan_speed_sampling_task(
         // 100ms sampling interval
         Timer::after_millis(100).await;
     }
-}
-
-/// Get detected maximum fan speed
-///
-/// # Returns
-/// Maximum speed value (RPM)
-pub async fn get_max_fan_rpm() -> u32 {
-    *MAX_FAN_RPM.lock().await
-}
-
-/// Get current fan speed
-///
-/// # Returns
-/// Current speed value (RPM)
-pub fn get_current_fan_rpm() -> u32 {
-    CURRENT_FAN_RPM.try_get().unwrap_or(0)
 }

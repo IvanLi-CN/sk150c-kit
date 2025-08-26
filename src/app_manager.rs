@@ -106,22 +106,6 @@ impl<'d> PowerManager<'d> {
         self.set_system_state(new_state).await;
     }
 
-    /// 处理输入事件（用于测试）
-    pub async fn handle_input_event(&mut self, event: Option<InputEvent>) {
-        if let Some(event) = event {
-            defmt::info!("Button event received: {:?}", event);
-            match event {
-                InputEvent::LongReleased => {
-                    defmt::info!("Power button long press released - toggling system state");
-                    self.toggle_system_state().await;
-                }
-                _ => {
-                    defmt::info!("Other button event: {:?}, ignoring", event);
-                }
-            }
-        }
-    }
-
     /// 设置系统状态
     async fn set_system_state(&mut self, new_state: SystemState) {
         if self.system_state != new_state {
