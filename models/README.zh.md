@@ -10,9 +10,11 @@
 
 #### STEP 格式文件（用于制造）
 
-- **`sk150c-shell-BodyMain.step`** - 主体外壳 STEP 文件
+- **`sk150c-shell-BodyMain.step`** - 主体外壳 STEP 文件（Rev1.0）
 - **`sk150c-shell-BodyMain_Rev1.1.step`** - 主体外壳修订版 1.1 STEP 文件
-- **`sk150c-shell-BodyBackCover.step`** - 后盖外壳 STEP 文件
+- **`sk150c-shell-BodyMain_Rev1.2.step`** - 主体外壳修订版 1.2 STEP 文件（最新）
+- **`sk150c-shell-BodyBackCover.step`** - 后盖外壳 STEP 文件（Rev1.0）
+- **`sk150c-shell-BodyBackCover_Rev1.1.step`** - 后盖外壳修订版 1.1 STEP 文件（最新）
 
 #### FreeCAD 源文件
 
@@ -42,16 +44,26 @@
 
 ## 设计版本历史
 
-### Rev 1.1 (最新版本)
+### Rev 1.2 (最新版本)
+
+- **接口开孔优化**：改进了 2.54mm 排针接口的开孔尺寸，确保更好的配合和连接可靠性
+- **电源模块增强**：优化了电源模块开孔尺寸，改善安装和散热管理
+- **前面板 PCB 固定位修复**：解决了前面板接口 PCB 固定位的冲突问题，确保组件正确对齐
+- **后盖电源接口**：保持 Rev1.1 中改进的 5.08mm 电源连接器接口
+- 保持 Rev1.1 的所有改进
+- 增强的组件配合和组装可靠性
+
+### Rev 1.1
 
 - **PCB 固定孔修复**：主体外壳的 PCB 固定孔未完全打通的问题已解决
 - **结构加强**：底部后侧增加加强筋，提升整体强度和稳定性
+- **后盖电源接口**：改进了 5.08mm 电源连接器接口的开孔尺寸
 - 保持所有原有功能和兼容性
 
 ### Rev 1.0 (初始版本)
 
 - 基础外壳设计和功能实现
-- 已知问题：PCB 固定孔未完全打通、底部后侧结构强度不足
+- 已知问题：PCB 固定孔未完全打通、底部后侧结构强度不足、接口开孔尺寸不够理想
 
 📋 **详细修改记录请查看：[CHANGELOG.md](./CHANGELOG.md)**
 
@@ -64,9 +76,9 @@
 
 ### 制造准备
 
-1. 推荐使用最新的 **Rev 1.1** 版本进行制造（[BodyMain_Rev1.1](./models/sk150c-shell-BodyMain_Rev1.1.step)，[BodyBackCover](./models/sk150c-shell-BodyBackCover.step)）
+1. 推荐使用最新的 **Rev 1.2** 版本进行制造（[BodyMain_Rev1.2](./sk150c-shell-BodyMain_Rev1.2.step)，[BodyBackCover_Rev1.1](./sk150c-shell-BodyBackCover_Rev1.1.step)）
 2. STEP 文件可直接用于 3D 打印
-3. 建议材料：ABS 或 PETG（3D 打印）
+3. 建议材料：尼龙 或 ABS（3D 打印）
 
 ### 装配顺序
 

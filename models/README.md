@@ -10,9 +10,11 @@ The current models have been validated for 3D printing using ABS material.
 
 #### STEP Format Files (for Manufacturing)
 
-- **`sk150c-shell-BodyMain.step`** - Main body shell STEP file
+- **`sk150c-shell-BodyMain.step`** - Main body shell STEP file (Rev1.0)
 - **`sk150c-shell-BodyMain_Rev1.1.step`** - Main body shell revision 1.1 STEP file
-- **`sk150c-shell-BodyBackCover.step`** - Back cover shell STEP file
+- **`sk150c-shell-BodyMain_Rev1.2.step`** - Main body shell revision 1.2 STEP file (Latest)
+- **`sk150c-shell-BodyBackCover.step`** - Back cover shell STEP file (Rev1.0)
+- **`sk150c-shell-BodyBackCover_Rev1.2.step`** - Back cover shell revision 1.2 STEP file (Latest)
 
 #### FreeCAD Source Files
 
@@ -42,16 +44,26 @@ The current models have been validated for 3D printing using ABS material.
 
 ## Design Version History
 
-### Rev 1.1 (Latest Version)
+### Rev 1.2 (Latest Version)
+
+- **Interface Opening Optimization**: Improved 2.54mm pin header interface opening dimensions for better fit and connection reliability
+- **Power Module Enhancement**: Optimized power module opening dimensions for improved installation and thermal management
+- **Front Panel PCB Mounting Fix**: Resolved conflicts in front panel interface PCB mounting positions, ensuring proper component alignment
+- **Back Cover Power Interface**: Maintains improved 5.08mm power connector interface from Rev1.1
+- Maintains all previous improvements from Rev1.1
+- Enhanced component fit and assembly reliability
+
+### Rev 1.1
 
 - **PCB Mounting Hole Fix**: Resolved issue where PCB mounting holes in main body were not fully drilled through
 - **Structural Reinforcement**: Added reinforcement ribs at bottom rear section to improve overall strength and stability
+- **Back Cover Power Interface**: Improved 5.08mm power connector interface opening dimensions
 - Maintains all original functionality and compatibility
 
 ### Rev 1.0 (Initial Version)
 
 - Basic shell design and functionality implementation
-- Known issues: PCB mounting holes not fully drilled through, insufficient structural strength at bottom rear section
+- Known issues: PCB mounting holes not fully drilled through, insufficient structural strength at bottom rear section, suboptimal interface opening dimensions
 
 📋 **For detailed change records, see: [CHANGELOG.md](./CHANGELOG.md)**
 
@@ -64,9 +76,9 @@ The current models have been validated for 3D printing using ABS material.
 
 ### Manufacturing Preparation
 
-1. Recommended to use the latest **Rev 1.1** version for manufacturing ([BodyMain_Rev1.1](./models/sk150c-shell-BodyMain_Rev1.1.step), [BodyBackCover](./models/sk150c-shell-BodyBackCover.step))
+1. Recommended to use the latest **Rev 1.2** version for manufacturing ([BodyMain_Rev1.2](./sk150c-shell-BodyMain_Rev1.2.step), [BodyBackCover_Rev1.2](./sk150c-shell-BodyBackCover_Rev1.2.step))
 2. STEP files can be used directly for 3D printing
-3. Recommended materials: ABS or PETG (3D printing)
+3. Recommended materials: Nylon or ABS (3D printing)
 
 ### Assembly Sequence
 
