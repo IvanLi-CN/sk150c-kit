@@ -46,10 +46,10 @@ mod adc_reader;
 mod app_manager;
 mod button;
 mod config_manager;
-mod fan_manager;
 mod power;
 mod power_output;
 mod shared;
+mod thermal_fan_controller;
 mod types;
 mod usb;
 mod vbus_manager;
@@ -199,16 +199,21 @@ async fn main(spawner: Spawner) {
     let dma_ch1 = p.DMA1_CH1;
     let _dma_ch2 = p.DMA1_CH2;
 
-    // Init INA186 REF
+    // Initialize DAC for fan speed control first (before using PA4 for other purposes)
+    // Note: We need both pins for Dac::new_blocking, but we only use channel 2 (PA5)
+    // PA4 is DAC1_OUT1, PA5 is DAC1_OUT2
+    let dac = embassy_stm32::dac::Dac::new_blocking(p.DAC1, p.PA4, p.PA5);
+    let (_dac_ch1, dac_ch2) = dac.split();
 
-    // let mut dac3 = Dac::new_internal(p.DAC3, p.DMA1_CH3, p.DMA1_CH4);
-    // dac3.ch1().set_mode(dac::Mode::NormalInternalUnbuffered);
-    // dac3.ch1().enable();
-    // dac3.ch1().set(dac::Value::Bit12Left(2048));
-    // let mut ref_buffer = OpAmp::new(p.OPAMP1, embassy_stm32::opamp::OpAmpSpeed::HighSpeed);
-    // ref_buffer.buffer_dac(p.PA2);
-    let mut ina_ref_pin = Output::new(p.PA4, Level::Low, Speed::Low);
+    // Init INA186 REF - use PB9 instead of PA4 (PA4 is now used by DAC)
+    // PB9 is available as I2C1_SDA/GPIO per hardware documentation
+    let mut ina_ref_pin = Output::new(p.PB9, Level::Low, Speed::Low);
     ina_ref_pin.set_low();
+
+    // Configure PB1 as FAN_EN (fan power enable) - this was missing!
+    let mut fan_en_pin = Output::new(p.PB1, Level::High, Speed::Low);
+    fan_en_pin.set_high(); // Enable fan power supply
+    defmt::info!("FAN_EN pin PB1 configured and enabled");
 
     // Configure hardware pins according to .ioc file
     // PA15: VIN_CE (input control enable)
@@ -333,15 +338,14 @@ async fn main(spawner: Spawner) {
     // Start VBUS ADC monitoring task
     spawner.spawn(vbus_adc_task()).unwrap();
 
-    // Create fan manager and start task
-    let temperature_rx = shared::TEMPERATURE_CHANNEL.receiver().unwrap();
-    let fan_manager = fan_manager::FanManager::new(fan_control_pin, temperature_rx);
-    spawner.spawn(fan_task(fan_manager)).unwrap();
-    defmt::info!("Fan management task started");
-
-    // Start fan speed sampling task
-    spawner.spawn(fan_speed_task(p.TIM3, p.PA6)).unwrap();
-    defmt::info!("Fan speed sampling task started");
+    // Start new thermal fan controller (replaces old fan_manager + fan_speed_controller)
+    spawner
+        .spawn(thermal_fan_controller::thermal_fan_controller_task(
+            dac_ch2,
+            fan_control_pin,
+        ))
+        .unwrap();
+    defmt::info!("Thermal fan controller task started");
 
     // Run system state machine tests
     defmt::info!("Running system state machine tests...");
@@ -466,20 +470,4 @@ async fn config_task(mut config_manager: ConfigManager) {
 #[embassy_executor::task]
 async fn pd_task(mut pd_service: PowerInput<'static, UCPD1, Irqs, PB6, PB4, DMA2_CH4, DMA2_CH5>) {
     pd_service.run().await;
-}
-
-#[embassy_executor::task]
-async fn fan_task(mut fan_manager: fan_manager::FanManager<'static>) {
-    loop {
-        fan_manager.tick().await;
-        embassy_time::Timer::after_secs(5).await; // Check every 5 seconds, synchronized with ADC sampling
-    }
-}
-
-#[embassy_executor::task]
-async fn fan_speed_task(
-    tim3: embassy_stm32::Peri<'static, peripherals::TIM3>,
-    fan_touch_pin: embassy_stm32::Peri<'static, peripherals::PA6>,
-) {
-    fan_manager::fan_speed_sampling_task(tim3, fan_touch_pin).await;
 }
