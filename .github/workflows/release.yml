@@ -15,6 +15,11 @@ on:
         description: 'Manual version (e.g., 1.0.0) - only used when mode is manual'
         required: false
         type: string
+      force_overwrite:
+        description: 'Force overwrite existing tag (use with caution)'
+        required: false
+        default: false
+        type: boolean
       version_type:
         description: 'Version type (for auto mode)'
         required: true
@@ -75,15 +80,15 @@ jobs:
             exit 1
           fi
 
-          # Validate semantic version format
+          # Simple format validation
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "❌ Error: Version '$VERSION' does not follow semantic versioning format (e.g., 1.0.0)"
+            echo "❌ Error: Version '$VERSION' must be in format: major.minor.patch (e.g., 1.0.0)"
             exit 1
           fi
 
-          # Check if tag already exists
-          if git tag -l | grep -q "^v$VERSION$"; then
-            echo "❌ Error: Tag 'v$VERSION' already exists"
+          # Check if tag exists (unless force overwrite is enabled)
+          if [ "${{ github.event.inputs.force_overwrite }}" != "true" ] && git tag -l | grep -q "^v$VERSION$"; then
+            echo "❌ Error: Tag 'v$VERSION' already exists. Use 'force_overwrite' to replace it."
             exit 1
           fi
 
@@ -108,11 +113,10 @@ jobs:
         id: final_version
         run: |
           if [ "${{ github.event.inputs.version_mode }}" = "manual" ]; then
-            # Use manual version
             VERSION="${{ github.event.inputs.manual_version }}"
-            echo "Using manual version: $VERSION"
+            echo "📝 Using manual version: $VERSION"
           else
-            # Use auto-generated version with fallback
+            # Use auto-generated version
             if [ "${{ github.event.inputs.version_type }}" = "major" ]; then
               VERSION="${{ steps.version.outputs.major_version }}"
             elif [ "${{ github.event.inputs.version_type }}" = "minor" ]; then
@@ -121,13 +125,13 @@ jobs:
               VERSION="${{ steps.version.outputs.version }}"
             fi
 
-            # Fallback if version is empty or invalid
-            if [ -z "$VERSION" ] || ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
-              echo "⚠️ Warning: Auto-generated version is invalid, using default"
+            # Simple fallback
+            if [ -z "$VERSION" ]; then
               VERSION="0.1.0"
+              echo "⚠️ Using fallback version: $VERSION"
+            else
+              echo "🤖 Using auto-generated version: $VERSION"
             fi
-
-            echo "Using auto-generated version: $VERSION"
           fi
 
           # Add prerelease suffix if requested
@@ -135,14 +139,8 @@ jobs:
             VERSION="${VERSION}-rc.$(date +'%Y%m%d%H%M%S')"
           fi
 
-          # Final validation
-          if [ -z "$VERSION" ]; then
-            echo "❌ Error: Final version is empty"
-            exit 1
-          fi
-
           echo "version=v$VERSION" >> $GITHUB_OUTPUT
-          echo "✅ Final version: v$VERSION"
+          echo "🎯 Final version: v$VERSION"
 
       - name: Build release binary
         run: cargo build --release --target thumbv7em-none-eabihf
@@ -187,6 +185,16 @@ jobs:
 
           echo "📋 Generated changelog:"
           cat CHANGELOG.md
+
+      - name: Handle existing tag (if force overwrite)
+        if: github.event.inputs.force_overwrite == 'true'
+        run: |
+          TAG="${{ steps.final_version.outputs.version }}"
+          if git tag -l | grep -q "^$TAG$"; then
+            echo "🗑️ Deleting existing tag: $TAG"
+            git tag -d "$TAG" || true
+            git push origin ":refs/tags/$TAG" || true
+          fi
 
       - name: Create release
         uses: softprops/action-gh-release@v1
