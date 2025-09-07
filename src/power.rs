@@ -297,6 +297,10 @@ where
             let cable_orientation = wait_attached(ucpd.cc_phy()).await;
             info!("USB cable attached, orientation: {}", cable_orientation);
 
+            // Check if this is a PD-capable source by waiting for stable VBUS
+            // Non-PD sources may cause voltage instability
+            Timer::after_millis(50).await; // Additional debounce for VBUS stability
+
             let cc_sel = match cable_orientation {
                 CableOrientation::Normal => {
                     info!("Starting PD communication on CC1 pin");
@@ -316,20 +320,29 @@ where
                 Sink::new(driver, self.device.clone());
             info!("Run sink");
 
-            match select(sink.run(), wait_detached(&mut cc_phy)).await {
-                Either::First(result) => {
+            // Add timeout for non-PD sources that may cause continuous reconnection
+            let pd_timeout = Timer::after_secs(5);
+
+            match select(select(sink.run(), wait_detached(&mut cc_phy)), pd_timeout).await {
+                Either::First(Either::First(result)) => {
                     warn!("Sink loop broken with result: {}", result);
                     if let Err(err) = result {
+                        warn!("PD communication error, will retry: {}", err);
                         self.pd_sink_error_tx.send(Arc::new(err)).await;
-                        // This is an unrecoverable error for this session.
-                        // Terminate the task to release the UCPD peripheral.
-                        warn!("Unrecoverable PD error. Terminating task.");
-                        return;
+                        // For non-critical errors, continue trying
+                        continue;
                     }
                 }
+                Either::First(Either::Second(_)) => {
+                    info!("Cable detached");
+                    continue;
+                }
                 Either::Second(_) => {
-                    info!("Detached");
-                    // Loop to wait for a new connection.
+                    warn!("PD communication timeout - possibly non-PD source");
+                    info!("Continuing with basic USB power (5V/0.5A)");
+                    // Wait for detachment before retrying
+                    wait_detached(&mut cc_phy).await;
+                    info!("Non-PD source detached");
                     continue;
                 }
             }
