@@ -1,0 +1,158 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      prerelease:
+        description: 'Is this a prerelease version'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+          components: rust-src, rustfmt, clippy
+
+      - name: Install build tools
+        run: |
+          cargo install cargo-binutils
+          rustup component add llvm-tools-preview
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-stm32-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-stm32-cargo-
+
+      - name: Generate semantic version
+        id: version
+        uses: paulhatch/semantic-version@v5.4.0
+        with:
+          tag_prefix: "v"
+          major_pattern: "BREAKING CHANGE:"
+          minor_pattern: "feat:"
+          version_format: "${major}.${minor}.${patch}"
+          bump_each_commit: false
+          search_commit_body: true
+          user_format_type: "csv"
+          enable_prerelease_mode: ${{ github.event.inputs.prerelease }}
+          debug: false
+
+      - name: Override version type if specified
+        id: final_version
+        run: |
+          if [ "${{ github.event.inputs.version_type }}" = "major" ]; then
+            VERSION="${{ steps.version.outputs.major_version }}"
+          elif [ "${{ github.event.inputs.version_type }}" = "minor" ]; then
+            VERSION="${{ steps.version.outputs.minor_version }}"
+          else
+            VERSION="${{ steps.version.outputs.version }}"
+          fi
+          if [ "${{ github.event.inputs.prerelease }}" = "true" ]; then
+            VERSION="${VERSION}-rc.$(date +'%Y%m%d%H%M%S')"
+          fi
+          echo "version=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Final version: v$VERSION"
+
+      - name: Build release binary
+        run: cargo build --release --target thumbv7em-none-eabihf
+
+      - name: Generate binary files
+        run: |
+          cargo objcopy --release --target thumbv7em-none-eabihf --bin sk150c-kit -- -O binary sk150c-kit.bin
+          cargo objcopy --release --target thumbv7em-none-eabihf --bin sk150c-kit -- -O ihex sk150c-kit.hex
+          echo "Generated binary files:"
+          echo "- sk150c-kit.bin ($(stat -c%s sk150c-kit.bin) bytes)"
+          echo "- sk150c-kit.hex ($(stat -c%s sk150c-kit.hex) bytes)"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the last release tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            echo "## Changes" > CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "Initial release" >> CHANGELOG.md
+          else
+            echo "## Changes" > CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            # Generate commit log
+            git log --pretty=format:"- %s (%h)" $LAST_TAG..HEAD >> CHANGELOG.md
+            if [ ! -s CHANGELOG.md ] || [ "$(wc -l < CHANGELOG.md)" -le 2 ]; then
+              echo "- Code optimization and bug fixes" >> CHANGELOG.md
+            fi
+          fi
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat CHANGELOG.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.final_version.outputs.version }}
+          name: "Release ${{ steps.final_version.outputs.version }}"
+          body: |
+            🎉 **Official Release**
+            
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ## Build Information
+            - **Build Time:** $(date +'%Y-%m-%d %H:%M:%S UTC')
+            - **Commit Hash:** ${{ github.sha }}
+            - **Rust Version:** Stable toolchain
+            - **Target Architecture:** thumbv7em-none-eabihf (STM32G431CBU6)
+            
+            ## File Description
+            - `sk150c-kit` - Main firmware file (ELF format with debug info)
+            - `sk150c-kit.bin` - Binary firmware file for flashing
+            - `sk150c-kit.hex` - Intel HEX firmware file for flashing
+            
+            ## Hardware Requirements
+            - **Microcontroller:** STM32G431CBU6
+            - **USB PD Interface:** UCPD1 interface support
+            - **Power Supply:** USB-C input with PD support
+            - **Output Interface:** USB-C output with power control
+            
+            ## Features
+            - USB PD protocol processing (PPS and fixed voltage requests)
+            - Voltage/current/temperature monitoring via ADC
+            - Power output control with intelligent switching
+            - Button input management and status indication
+            - Software undervoltage protection
+          files: |
+            target/thumbv7em-none-eabihf/release/sk150c-kit
+            sk150c-kit.bin
+            sk150c-kit.hex
+          prerelease: ${{ github.event.inputs.prerelease }}
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

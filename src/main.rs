@@ -17,8 +17,8 @@ use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_stm32::{
     adc::{
-        vals::{Rovsm, Trovs},
         Adc, AdcChannel, SampleTime,
+        vals::{Rovsm, Trovs},
     },
     bind_interrupts,
     exti::ExtiInput,
@@ -26,8 +26,8 @@ use embassy_stm32::{
     i2c,
     peripherals::{self, DMA2_CH4, DMA2_CH5, PB4, PB6, UCPD1},
     time::khz,
-    timer::simple_pwm::{PwmPin, SimplePwm},
     timer::Channel,
+    timer::simple_pwm::{PwmPin, SimplePwm},
     ucpd::{self},
 };
 use embassy_sync::{mutex::Mutex, pubsub::PubSubBehavior};
@@ -128,7 +128,7 @@ async fn main(spawner: Spawner) {
 
     // Simplified single button input manager - only use PB8
     let power_button = ExtiInput::new(p.PB8, p.EXTI8, Pull::Down); // PB8 - active high
-                                                                   // Debounce time 50ms, long press threshold 1000ms (1s)
+    // Debounce time 50ms, long press threshold 1000ms (1s)
     let input_mgr = InputManager::new(
         power_button,
         Duration::from_millis(50),

@@ -1,20 +1,20 @@
 use alloc::sync::Arc;
 use core::marker::PhantomData;
-use defmt::{info, warn, Format};
-use embassy_futures::select::{select, Either};
+use defmt::{Format, info, warn};
+use embassy_futures::select::{Either, select};
 use embassy_stm32::{
-    interrupt,
+    Peri, interrupt,
     ucpd::{
         self, Cc1Pin, Cc2Pin, CcPhy, CcPull, CcSel, CcVState, Config, Instance, InterruptHandler,
         PdPhy, RxDma, TxDma, Ucpd,
     },
-    Peri,
 };
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex, channel, mutex::Mutex, signal::Signal, watch,
 };
-use embassy_time::{with_timeout, Duration, Timer};
+use embassy_time::{Duration, Timer, with_timeout};
 
+use usbpd::{Driver as SinkDriver, sink::policy_engine::Sink};
 use usbpd::{
     protocol_layer::message::{
         pdo::SourceCapabilities,
@@ -23,7 +23,6 @@ use usbpd::{
     sink::{self, device_policy_manager::DevicePolicyManager},
     timers::Timer as SinkTimer,
 };
-use usbpd::{sink::policy_engine::Sink, Driver as SinkDriver};
 
 #[derive(Debug, Format)]
 enum CableOrientation {

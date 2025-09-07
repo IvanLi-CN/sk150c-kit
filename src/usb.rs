@@ -2,9 +2,9 @@ use embassy_futures::join::join;
 use embassy_stm32::{peripherals, usb};
 use embassy_usb::driver::{Driver, Endpoint, EndpointIn, EndpointOut};
 use embassy_usb::{
+    Builder,
     class::web_usb::{self, Url, WebUsb},
     driver::EndpointError,
-    Builder,
 };
 
 #[embassy_executor::task]

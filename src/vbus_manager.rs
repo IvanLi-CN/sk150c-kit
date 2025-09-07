@@ -3,7 +3,7 @@ use embassy_stm32::gpio::Output;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embassy_time::Timer;
 
-use crate::{button::InputEvent, power_output::PowerOutput, InputSubscriber};
+use crate::{InputSubscriber, button::InputEvent, power_output::PowerOutput};
 
 /// VBUS 电压阈值 (5.5V)
 const VBUS_VOLTAGE_THRESHOLD: f64 = 5.5;

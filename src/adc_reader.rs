@@ -1,8 +1,8 @@
 use defmt_rtt as _;
 use embassy_stm32::{
+    Peri,
     adc::{Adc, AnyAdcChannel, SampleTime},
     peripherals::{self, ADC1},
-    Peri,
 };
 use embassy_time::{Duration, Ticker};
 use panic_probe as _;

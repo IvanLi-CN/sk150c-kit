@@ -1,12 +1,12 @@
 use alloc::sync::Arc;
 use embassy_stm32::{
-    gpio::Output, peripherals::TIM1, timer::simple_pwm::SimplePwm, timer::Channel,
+    gpio::Output, peripherals::TIM1, timer::Channel, timer::simple_pwm::SimplePwm,
 };
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embassy_time::Timer;
 use embedded_hal_02::Pwm;
 
-use crate::{button::InputEvent, InputSubscriber};
+use crate::{InputSubscriber, button::InputEvent};
 
 /// 全局系统状态
 #[derive(Debug, Clone, Copy, PartialEq, defmt::Format)]

@@ -1,7 +1,7 @@
 [package]
 name = "sk150c-kit"
-version = "0.1.0"
-edition = "2021"
+version = "0.0.0"
+edition = "2024"
 authors = ["Ivan Li"]
 license = "MIT"
 description = "SK150C adjustable power supply module control firmware for STM32G431CBU6"
