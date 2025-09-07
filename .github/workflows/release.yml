@@ -3,8 +3,20 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
+      version_mode:
+        description: 'Version generation mode'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - manual
+      manual_version:
+        description: 'Manual version (e.g., 1.0.0) - only used when mode is manual'
+        required: false
+        type: string
       version_type:
-        description: 'Version type'
+        description: 'Version type (for auto mode)'
         required: true
         default: 'patch'
         type: choice
@@ -52,8 +64,34 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-stm32-cargo-
 
+      - name: Validate manual version
+        if: github.event.inputs.version_mode == 'manual'
+        run: |
+          VERSION="${{ github.event.inputs.manual_version }}"
+
+          # Check if version is provided
+          if [ -z "$VERSION" ]; then
+            echo "❌ Error: Manual version is required when version_mode is 'manual'"
+            exit 1
+          fi
+
+          # Validate semantic version format
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "❌ Error: Version '$VERSION' does not follow semantic versioning format (e.g., 1.0.0)"
+            exit 1
+          fi
+
+          # Check if tag already exists
+          if git tag -l | grep -q "^v$VERSION$"; then
+            echo "❌ Error: Tag 'v$VERSION' already exists"
+            exit 1
+          fi
+
+          echo "✅ Manual version '$VERSION' is valid"
+
       - name: Generate semantic version
         id: version
+        if: github.event.inputs.version_mode == 'auto'
         uses: paulhatch/semantic-version@v5.4.0
         with:
           tag_prefix: "v"
@@ -66,21 +104,45 @@ jobs:
           enable_prerelease_mode: ${{ github.event.inputs.prerelease }}
           debug: false
 
-      - name: Override version type if specified
+      - name: Determine final version
         id: final_version
         run: |
-          if [ "${{ github.event.inputs.version_type }}" = "major" ]; then
-            VERSION="${{ steps.version.outputs.major_version }}"
-          elif [ "${{ github.event.inputs.version_type }}" = "minor" ]; then
-            VERSION="${{ steps.version.outputs.minor_version }}"
+          if [ "${{ github.event.inputs.version_mode }}" = "manual" ]; then
+            # Use manual version
+            VERSION="${{ github.event.inputs.manual_version }}"
+            echo "Using manual version: $VERSION"
           else
-            VERSION="${{ steps.version.outputs.version }}"
+            # Use auto-generated version with fallback
+            if [ "${{ github.event.inputs.version_type }}" = "major" ]; then
+              VERSION="${{ steps.version.outputs.major_version }}"
+            elif [ "${{ github.event.inputs.version_type }}" = "minor" ]; then
+              VERSION="${{ steps.version.outputs.minor_version }}"
+            else
+              VERSION="${{ steps.version.outputs.version }}"
+            fi
+
+            # Fallback if version is empty or invalid
+            if [ -z "$VERSION" ] || ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+              echo "⚠️ Warning: Auto-generated version is invalid, using default"
+              VERSION="0.1.0"
+            fi
+
+            echo "Using auto-generated version: $VERSION"
           fi
+
+          # Add prerelease suffix if requested
           if [ "${{ github.event.inputs.prerelease }}" = "true" ]; then
             VERSION="${VERSION}-rc.$(date +'%Y%m%d%H%M%S')"
           fi
+
+          # Final validation
+          if [ -z "$VERSION" ]; then
+            echo "❌ Error: Final version is empty"
+            exit 1
+          fi
+
           echo "version=v$VERSION" >> $GITHUB_OUTPUT
-          echo "Final version: v$VERSION"
+          echo "✅ Final version: v$VERSION"
 
       - name: Build release binary
         run: cargo build --release --target thumbv7em-none-eabihf
@@ -96,24 +158,35 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          # Get the last release tag
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          # Get the last valid release tag (must match v{major}.{minor}.{patch} format)
+          LAST_TAG=$(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -n1)
+
+          echo "## Changes" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+
           if [ -z "$LAST_TAG" ]; then
-            echo "## Changes" > CHANGELOG.md
+            echo "📦 Initial release" >> CHANGELOG.md
             echo "" >> CHANGELOG.md
-            echo "Initial release" >> CHANGELOG.md
+            echo "This is the first release of the SK150C Kit firmware." >> CHANGELOG.md
           else
-            echo "## Changes" > CHANGELOG.md
+            echo "📝 Changes since $LAST_TAG:" >> CHANGELOG.md
             echo "" >> CHANGELOG.md
-            # Generate commit log
-            git log --pretty=format:"- %s (%h)" $LAST_TAG..HEAD >> CHANGELOG.md
-            if [ ! -s CHANGELOG.md ] || [ "$(wc -l < CHANGELOG.md)" -le 2 ]; then
+
+            # Generate commit log since last tag
+            COMMITS=$(git log --pretty=format:"- %s (%h)" $LAST_TAG..HEAD)
+            if [ -n "$COMMITS" ]; then
+              echo "$COMMITS" >> CHANGELOG.md
+            else
               echo "- Code optimization and bug fixes" >> CHANGELOG.md
             fi
           fi
+
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           cat CHANGELOG.md >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "📋 Generated changelog:"
+          cat CHANGELOG.md
 
       - name: Create release
         uses: softprops/action-gh-release@v1
