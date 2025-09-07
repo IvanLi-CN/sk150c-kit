@@ -7,11 +7,24 @@ pre-commit:
       stage_fixed: true
     clippy:
       glob: "*.{rs}"
-      run: cargo clippy
+      run: cargo clippy --target thumbv7em-none-eabihf
     markdown-lint:
       glob: "**/*.md"
       run: bunx markdownlint-cli2 {staged_files}
       stage_fixed: true
+
+pre-push:
+  parallel: false
+  commands:
+    check:
+      run: cargo check --target thumbv7em-none-eabihf
+      fail_text: "Compilation check failed. Please fix compilation errors before pushing."
+    fmt-check:
+      run: cargo fmt --check
+      fail_text: "Code formatting issues found. Please run 'cargo fmt' to fix formatting."
+    clippy:
+      run: cargo clippy --target thumbv7em-none-eabihf -- -D warnings
+      fail_text: "Clippy lints failed. Please fix all clippy warnings before pushing."
 
 commit-msg:
   commands:

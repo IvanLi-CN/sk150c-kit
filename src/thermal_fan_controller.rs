@@ -176,7 +176,7 @@ impl StartupDetection {
         let max_deviation = self
             .last_rpm_samples
             .iter()
-            .map(|&rpm| if rpm > avg { rpm - avg } else { avg - rpm })
+            .map(|&rpm| rpm.abs_diff(avg))
             .max()
             .unwrap_or(0);
 

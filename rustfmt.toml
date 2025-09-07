@@ -1,2 +1,4 @@
-imports_granularity = "Crate"
-group_imports = "StdExternalCrate"
+# Note: These features require nightly Rust
+# Uncomment when using nightly toolchain:
+# imports_granularity = "Crate"
+# group_imports = "StdExternalCrate"

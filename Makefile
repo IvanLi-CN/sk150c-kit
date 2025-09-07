@@ -29,10 +29,10 @@ clean:
 
 # Code quality checks
 check:
-	cargo check
+	cargo check --target thumbv7em-none-eabihf
 
 clippy:
-	cargo clippy -- -D warnings
+	cargo clippy --target thumbv7em-none-eabihf -- -D warnings
 
 fmt:
 	cargo fmt
