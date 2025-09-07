@@ -17,6 +17,11 @@ The SK150C Kit project now includes an enhanced GitHub Actions release workflow 
 - **Required**: Only when version mode is set to "manual"
 - **Validation**: Must follow `major.minor.patch` format with numbers only
 
+### Force Overwrite
+
+- **false**: Prevent overwriting existing tags (default, safer)
+- **true**: Allow replacing existing tags (use with caution)
+
 ### Version Type (Auto Mode)
 
 - **patch**: Increment patch version (e.g., 1.0.0 → 1.0.1)
@@ -36,7 +41,17 @@ The SK150C Kit project now includes an enhanced GitHub Actions release workflow 
 2. Click "Run workflow"
 3. Set **Version Mode**: `manual`
 4. Set **Manual Version**: `1.0.0`
-5. Set **Prerelease**: `false`
+5. Set **Force Overwrite**: `false` (or `true` to replace existing)
+6. Set **Prerelease**: `false`
+7. Click "Run workflow"
+
+### Overwrite Existing Release
+
+1. Go to Actions → Release workflow
+2. Click "Run workflow"
+3. Set **Version Mode**: `manual`
+4. Set **Manual Version**: `1.0.0` (existing version)
+5. Set **Force Overwrite**: `true` ⚠️
 6. Click "Run workflow"
 
 ### Automatic Version Release
@@ -48,22 +63,23 @@ The SK150C Kit project now includes an enhanced GitHub Actions release workflow 
 5. Set **Prerelease**: `false`
 6. Click "Run workflow"
 
-## ✅ Validation Features
+## ✅ Key Features
 
-### Version Format Validation
+### Simple Version Validation
 
-- Ensures semantic versioning format (`major.minor.patch`)
-- Rejects invalid formats like `1.0`, `v1.0.0`, `1.0.0-beta`
+- Basic semantic versioning format check (`major.minor.patch`)
+- Clear error messages for invalid formats
 
-### Duplicate Tag Prevention
+### Tag Management
 
-- Checks if the version tag already exists
-- Prevents accidental duplicate releases
+- Prevents accidental overwrites by default
+- Force overwrite option for intentional replacements
+- Automatic cleanup when overwriting
 
-### Fallback Mechanisms
+### Smart Fallbacks
 
-- If auto-generation fails, defaults to `0.1.0`
-- Comprehensive error handling with clear messages
+- Defaults to `0.1.0` if auto-generation fails
+- Graceful handling of edge cases
 
 ## 🔧 Generated Artifacts
 
