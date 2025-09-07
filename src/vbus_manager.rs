@@ -81,15 +81,17 @@ impl<'d> VbusManager<'d> {
     /// 检查并处理VBUS重置信号
     async fn check_vbus_reset(&mut self) {
         // 检查是否有VBUS重置信号
-        if let Some(mut reset_rx) = crate::shared::VBUS_RESET_CHANNEL.receiver() {
-            if let Some(reset_signal) = reset_rx.try_get() {
-                if reset_signal {
-                    defmt::info!("VBUS reset signal received - forcing VBUS to Disabled");
-                    self.set_vbus_state(VbusState::Disabled).await;
-                    // 清除重置信号
-                    crate::shared::VBUS_RESET_CHANNEL.sender().send(false);
-                }
-            }
+        let Some(mut reset_rx) = crate::shared::VBUS_RESET_CHANNEL.receiver() else {
+            return;
+        };
+        let Some(reset_signal) = reset_rx.try_get() else {
+            return;
+        };
+        if reset_signal {
+            defmt::info!("VBUS reset signal received - forcing VBUS to Disabled");
+            self.set_vbus_state(VbusState::Disabled).await;
+            // 清除重置信号
+            crate::shared::VBUS_RESET_CHANNEL.sender().send(false);
         }
     }
 
