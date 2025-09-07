@@ -92,6 +92,17 @@ impl<T: TimeProvider, P: ButtonPin> ButtonInternal<T, P> {
                     // 创建1000ms定时器
                     let long_press_deadline = start_time + self.long_press;
 
+                    // 边界情况处理：如果当前时间已达到或超过阈值（例如测试中先推进时间）
+                    // 则无需等待，立即视为长按开始。
+                    if self.time_provider.now() >= long_press_deadline {
+                        defmt::info!(
+                            "Time already past long-press threshold at wait start; trigger immediately"
+                        );
+                        *self.state.lock().await = ButtonState::LongPressed;
+                        *self.long_press_triggered.lock().await = true;
+                        return ButtonEvent::LongPressStart;
+                    }
+
                     // 同时等待按键释放和长按定时器
                     match select::select(
                         self.pin.wait_for_low(),

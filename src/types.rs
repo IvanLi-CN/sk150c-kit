@@ -1,18 +1,30 @@
+#[cfg(not(test))]
 use embassy_stm32::i2c::{I2c, Master};
+#[cfg(not(test))]
 use embassy_stm32::mode;
+#[cfg(not(test))]
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+#[cfg(not(test))]
 use embassy_sync::mutex::Mutex;
+#[cfg(not(test))]
 use embassy_sync::pubsub;
 
+#[cfg(not(test))]
 use crate::button::InputEvent;
 
+#[cfg(not(test))]
 pub(crate) type I2cBus = I2c<'static, mode::Async, Master>;
+#[cfg(not(test))]
 pub(crate) type SharedI2cBus = Mutex<CriticalSectionRawMutex, I2cBus>;
 
+#[cfg(not(test))]
 pub(crate) const INPUT_CAP: usize = 2;
+#[cfg(not(test))]
 pub(crate) const INPUT_PUB: usize = 1;
+#[cfg(not(test))]
 pub(crate) const INPUT_SUB: usize = 2;
 
+#[cfg(not(test))]
 pub(crate) type InputSubscriber<'d> =
     pubsub::Subscriber<'d, CriticalSectionRawMutex, InputEvent, INPUT_CAP, INPUT_SUB, INPUT_PUB>;
 

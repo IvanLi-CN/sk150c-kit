@@ -1,5 +1,6 @@
 // 重构后的按键控制模块 - 支持依赖注入和完整测试
 mod button_internal;
+#[cfg(not(test))]
 mod real_impl;
 mod traits;
 
@@ -9,15 +10,24 @@ mod mock_impl;
 mod tests;
 
 pub use button_internal::ButtonInternal;
+#[cfg(not(test))]
 pub use real_impl::{RealButtonPin, RealTimeProvider};
 
+// The following constants/imports are only needed for firmware (not host tests)
+#[cfg(not(test))]
+const INPUT_CAP: usize = 2;
+#[cfg(not(test))]
+const INPUT_PUB: usize = 1;
+#[cfg(not(test))]
+const INPUT_SUB: usize = 2;
+#[cfg(not(test))]
 use alloc::sync::Arc;
-use embassy_stm32::exti::ExtiInput;
+#[cfg(not(test))]
 use embassy_sync::pubsub::{PubSubBehavior, PubSubChannel};
+#[cfg(not(test))]
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, pubsub::Subscriber};
+#[cfg(not(test))]
 use embassy_time::Duration;
-
-use crate::{INPUT_CAP, INPUT_PUB, INPUT_SUB};
 
 // 简化的输入事件类型 - 只支持单按钮
 #[derive(Debug, PartialEq, Clone, defmt::Format)]
@@ -32,6 +42,7 @@ pub enum InputEvent {
 pub use button_internal::ButtonEvent;
 
 // 类型别名，使用真实硬件实现
+#[cfg(not(test))]
 type RealButtonInternal = ButtonInternal<RealTimeProvider, RealButtonPin>;
 
 // 旧的ButtonInternal实现已移动到button_internal.rs模块
@@ -41,6 +52,10 @@ type RealButtonInternal = ButtonInternal<RealTimeProvider, RealButtonPin>;
 // 旧的ButtonEvent枚举已移动到button_internal.rs模块
 
 // 简化的单按钮输入管理器
+#[cfg(not(test))]
+use embassy_stm32::exti::ExtiInput;
+
+#[cfg(not(test))]
 #[derive(Clone)]
 pub struct InputManager {
     button: RealButtonInternal,
@@ -48,6 +63,7 @@ pub struct InputManager {
         Arc<PubSubChannel<CriticalSectionRawMutex, InputEvent, INPUT_CAP, INPUT_SUB, INPUT_PUB>>,
 }
 
+#[cfg(not(test))]
 impl InputManager {
     // 简化构造函数，只接受单个按钮（PB8）
     pub fn new(button_pin: ExtiInput<'static>, debounce: Duration, long_press: Duration) -> Self {

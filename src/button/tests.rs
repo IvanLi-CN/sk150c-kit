@@ -13,7 +13,7 @@ mod button_tests {
         Arc<MockButtonPin>,
     ) {
         let time_provider = Arc::new(MockTimeProvider::new());
-        let pin = Arc::new(MockButtonPin::new());
+        let pin = Arc::new(MockButtonPin::with_time(Arc::clone(&time_provider)));
         let button = ButtonInternal::new(
             Arc::clone(&time_provider),
             Arc::clone(&pin),
@@ -21,6 +21,15 @@ mod button_tests {
             Duration::from_millis(1000), // 1000ms long press
         );
         (button, time_provider, pin)
+    }
+
+    use tokio::time::{Duration as TokioDuration, timeout};
+
+    async fn poll_with_timeout(button: &TestButtonInternal, ms: u64) -> ButtonEvent {
+        match timeout(TokioDuration::from_millis(ms), button.poll()).await {
+            Ok(ev) => ev,
+            Err(_) => panic!("button.poll() timed out after {} ms", ms),
+        }
     }
 
     #[tokio::test]
@@ -43,7 +52,7 @@ mod button_tests {
             pin.set_low().await;
 
             // 验证触发短按事件
-            let event = button.poll().await;
+            let event = poll_with_timeout(&button, 500).await;
             assert_eq!(
                 event,
                 ButtonEvent::ShortPress,
@@ -69,7 +78,7 @@ mod button_tests {
             .await;
 
         // 验证长按立即触发
-        let event = button.poll().await;
+        let event = poll_with_timeout(&button, 500).await;
         assert_eq!(
             event,
             ButtonEvent::LongPressStart,
@@ -94,7 +103,7 @@ mod button_tests {
         time_provider
             .advance_time(Duration::from_millis(1000))
             .await;
-        let event1 = button.poll().await;
+        let event1 = poll_with_timeout(&button, 500).await;
         assert_eq!(event1, ButtonEvent::LongPressStart);
 
         // 继续按住一段时间
@@ -106,7 +115,7 @@ mod button_tests {
         pin.set_low().await;
 
         // 验证长按释放事件
-        let event2 = button.poll().await;
+        let event2 = poll_with_timeout(&button, 500).await;
         assert_eq!(event2, ButtonEvent::LongPressEnd);
 
         // 验证状态重置
@@ -133,7 +142,7 @@ mod button_tests {
             pin.set_low().await;
 
             // 验证触发None事件（被过滤）
-            let event = button.poll().await;
+            let event = poll_with_timeout(&button, 500).await;
             assert_eq!(
                 event,
                 ButtonEvent::None,
@@ -154,7 +163,7 @@ mod button_tests {
         pin.set_high().await;
         time_provider.advance_time(Duration::from_millis(50)).await;
         pin.set_low().await;
-        let event = button.poll().await;
+        let event = poll_with_timeout(&button, 500).await;
         assert_eq!(
             event,
             ButtonEvent::ShortPress,
@@ -165,7 +174,7 @@ mod button_tests {
         pin.set_high().await;
         time_provider.advance_time(Duration::from_millis(999)).await;
         pin.set_low().await;
-        let event = button.poll().await;
+        let event = poll_with_timeout(&button, 500).await;
         assert_eq!(
             event,
             ButtonEvent::ShortPress,
@@ -177,7 +186,7 @@ mod button_tests {
         time_provider
             .advance_time(Duration::from_millis(1000))
             .await;
-        let event = button.poll().await;
+        let event = poll_with_timeout(&button, 500).await;
         assert_eq!(
             event,
             ButtonEvent::LongPressStart,
@@ -196,7 +205,7 @@ mod button_tests {
         time_provider
             .advance_time(Duration::from_millis(1000))
             .await;
-        let event1 = button.poll().await;
+        let event1 = poll_with_timeout(&button, 500).await;
         assert_eq!(event1, ButtonEvent::LongPressStart);
 
         // 继续按住很长时间（10秒）
@@ -212,7 +221,7 @@ mod button_tests {
 
         // 释放按键
         pin.set_low().await;
-        let event2 = button.poll().await;
+        let event2 = poll_with_timeout(&button, 500).await;
         assert_eq!(event2, ButtonEvent::LongPressEnd);
     }
 
@@ -225,13 +234,13 @@ mod button_tests {
         time_provider
             .advance_time(Duration::from_millis(1000))
             .await;
-        let event = button.poll().await;
+        let event = poll_with_timeout(&button, 500).await;
         assert_eq!(event, ButtonEvent::LongPressStart);
         assert_eq!(button.get_state().await, ButtonState::LongPressed);
 
         // 释放后应该回到Idle
         pin.set_low().await;
-        let event = button.poll().await;
+        let event = poll_with_timeout(&button, 500).await;
         assert_eq!(event, ButtonEvent::LongPressEnd);
         assert_eq!(button.get_state().await, ButtonState::Idle);
     }
@@ -247,7 +256,7 @@ mod button_tests {
         time_provider
             .advance_time(Duration::from_millis(1000))
             .await;
-        let event1 = button.poll().await;
+        let event1 = poll_with_timeout(&button, 500).await;
         assert_eq!(event1, ButtonEvent::LongPressStart);
 
         // 继续按住29秒
@@ -257,7 +266,7 @@ mod button_tests {
 
         // 释放按键
         pin.set_low().await;
-        let event2 = button.poll().await;
+        let event2 = poll_with_timeout(&button, 500).await;
         assert_eq!(event2, ButtonEvent::LongPressEnd);
 
         // 验证总时长记录正确（应该是30秒）
@@ -275,7 +284,7 @@ mod button_tests {
         time_provider
             .advance_time(Duration::from_millis(1000))
             .await;
-        let event1 = button.poll().await;
+        let event1 = poll_with_timeout(&button, 500).await;
         assert_eq!(
             event1,
             ButtonEvent::LongPressStart,
@@ -289,7 +298,7 @@ mod button_tests {
 
         // 释放按键
         pin.set_low().await;
-        let event2 = button.poll().await;
+        let event2 = poll_with_timeout(&button, 500).await;
         assert_eq!(
             event2,
             ButtonEvent::LongPressEnd,
@@ -312,7 +321,7 @@ mod button_tests {
             time_provider
                 .advance_time(Duration::from_millis(1000))
                 .await;
-            let event1 = button.poll().await;
+            let event1 = poll_with_timeout(&button, 500).await;
             assert_eq!(
                 event1,
                 ButtonEvent::LongPressStart,
@@ -322,7 +331,7 @@ mod button_tests {
 
             // 释放
             pin.set_low().await;
-            let event2 = button.poll().await;
+            let event2 = poll_with_timeout(&button, 500).await;
             assert_eq!(
                 event2,
                 ButtonEvent::LongPressEnd,
@@ -344,18 +353,18 @@ mod button_tests {
         time_provider
             .advance_time(Duration::from_millis(1000))
             .await;
-        let event1 = button.poll().await;
+        let event1 = poll_with_timeout(&button, 500).await;
         assert_eq!(event1, ButtonEvent::LongPressStart);
 
         pin.set_low().await;
-        let event2 = button.poll().await;
+        let event2 = poll_with_timeout(&button, 500).await;
         assert_eq!(event2, ButtonEvent::LongPressEnd);
 
         // 立即短按
         pin.set_high().await;
         time_provider.advance_time(Duration::from_millis(100)).await;
         pin.set_low().await;
-        let event3 = button.poll().await;
+        let event3 = poll_with_timeout(&button, 500).await;
         assert_eq!(event3, ButtonEvent::ShortPress);
     }
 
@@ -373,7 +382,7 @@ mod button_tests {
         pin.set_low().await;
 
         // 应该触发长按开始
-        let event1 = button.poll().await;
+        let event1 = poll_with_timeout(&button, 500).await;
         assert_eq!(
             event1,
             ButtonEvent::LongPressStart,
@@ -381,7 +390,7 @@ mod button_tests {
         );
 
         // 然后应该立即检测到释放并触发长按结束
-        let event2 = button.poll().await;
+        let event2 = poll_with_timeout(&button, 500).await;
         assert_eq!(
             event2,
             ButtonEvent::LongPressEnd,

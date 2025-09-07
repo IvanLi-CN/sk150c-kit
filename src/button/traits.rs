@@ -1,3 +1,5 @@
+#![allow(async_fn_in_trait)]
+
 use embassy_time::Instant;
 
 /// 时间提供者抽象接口

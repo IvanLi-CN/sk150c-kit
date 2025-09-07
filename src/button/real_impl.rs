@@ -17,6 +17,12 @@ impl RealTimeProvider {
     }
 }
 
+impl Default for RealTimeProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TimeProvider for RealTimeProvider {
     fn now(&self) -> Instant {
         Instant::now()

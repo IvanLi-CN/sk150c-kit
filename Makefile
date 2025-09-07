@@ -17,11 +17,13 @@ BIN_NAME = sk150c-kit
 all: build
 
 # Build commands
+# Host target (auto-detected) for running tests
+HOST_TARGET := $(shell rustc -vV | sed -n 's/^host: //p')
 build:
-	cargo build
+	cargo build --target thumbv7em-none-eabihf
 
 build-release:
-	cargo build --release
+	cargo build --release --target thumbv7em-none-eabihf
 
 # Clean build artifacts
 clean:
@@ -38,20 +40,20 @@ fmt:
 	cargo fmt
 
 test:
-	cargo test
+	cargo test --target $(HOST_TARGET)
 
 # Flash and run commands
 flash:
-	cargo run
+	cargo run --target thumbv7em-none-eabihf
 
 flash-release:
-	cargo run --release
+	cargo run --release --target thumbv7em-none-eabihf
 
 run:
-	cargo run
+	cargo run --target thumbv7em-none-eabihf
 
 run-release:
-	cargo run --release
+	cargo run --release --target thumbv7em-none-eabihf
 
 # Probe-rs debugging commands
 attach:

@@ -12,10 +12,42 @@ pre-commit:
       glob: "**/*.md"
       run: bunx markdownlint-cli2 {staged_files}
       stage_fixed: true
+    test-host-lib:
+      run: |
+        HOST_TARGET=$(rustc -vV | sed -n 's/^host: //p') && \
+        echo "Running lib tests on host target: $HOST_TARGET" && \
+        cargo test --lib --target "$HOST_TARGET"
+      fail_text: "Lib unit tests failed on host target. Please fix before committing."
 
 pre-push:
   parallel: false
   commands:
+    test-host:
+      run: |
+        HOST_TARGET=$(rustc -vV | sed -n 's/^host: //p') && \
+        echo "Running tests on host target: $HOST_TARGET" && \
+        cargo test --target "$HOST_TARGET"
+      fail_text: "Unit tests failed on host target. Please fix tests before pushing."
+    commitlint-range:
+      run: |
+        set -euo pipefail
+        # Determine upstream to diff against (fallback to last 20 commits)
+        if UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null); then
+          BASE=$(git merge-base HEAD "$UPSTREAM")
+          echo "Running commitlint from $BASE to HEAD (upstream: $UPSTREAM)"
+          bunx commitlint --from "$BASE" --to HEAD
+        else
+          echo "No upstream found; running commitlint on last 20 commits"
+          START=$(git rev-list --max-count=1 --skip=20 HEAD || echo "")
+          if [ -n "$START" ]; then
+            bunx commitlint --from "$START" --to HEAD
+          else
+            # Repo with fewer than 20 commits: lint entire history
+            FIRST=$(git rev-list --max-parents=0 HEAD)
+            bunx commitlint --from "$FIRST" --to HEAD
+          fi
+        fi
+      fail_text: "Commit messages do not meet conventions. Please fix before pushing."
     check:
       run: cargo check --target thumbv7em-none-eabihf
       fail_text: "Compilation check failed. Please fix compilation errors before pushing."

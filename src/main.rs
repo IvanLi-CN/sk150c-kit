@@ -5,7 +5,6 @@ use adc_reader::{AdcCalibration, AdcReader};
 use alloc::sync::Arc;
 use app_manager::{PowerManager, PowerManagerContext};
 use button::InputManager;
-use config_manager::ConfigManager;
 use vbus_manager::{VbusManager, VbusManagerContext};
 
 use core::{
@@ -45,7 +44,6 @@ use types::*;
 mod adc_reader;
 mod app_manager;
 mod button;
-mod config_manager;
 mod power;
 mod power_output;
 mod shared;
@@ -145,9 +143,7 @@ async fn main(spawner: Spawner) {
 
     defmt::info!("Skipping motion sensor and EEPROM for debugging");
 
-    let config_snapshot_tx = CONFIG_SNAPSHOT_CHANNEL.sender();
-    config_snapshot_tx.send(Default::default());
-    defmt::info!("Using default config");
+    // Config snapshot/channel removed; using defaults baked into modules
 
     // Software undervoltage protection will start after power_output creation
     defmt::info!("Software undervoltage protection will start later");
@@ -296,16 +292,16 @@ async fn main(spawner: Spawner) {
     let power_input_subscriber = input_manager.subscriber();
     if let Err(e) = power_input_subscriber {
         defmt::panic!(
-            "Failed to subscribe to input events for power manager: {}",
-            e
+            "Failed to subscribe to input events for power manager: {:?}",
+            defmt::Debug2Format(&e)
         );
     }
 
     let vbus_input_subscriber = input_manager.subscriber();
     if let Err(e) = vbus_input_subscriber {
         defmt::panic!(
-            "Failed to subscribe to input events for vbus manager: {}",
-            e
+            "Failed to subscribe to input events for vbus manager: {:?}",
+            defmt::Debug2Format(&e)
         );
     }
 
@@ -453,19 +449,7 @@ async fn adc_task() {
     }
 }
 
-#[embassy_executor::task]
-async fn config_task(mut config_manager: ConfigManager) {
-    let config_req_rx = CONFIG_REQUEST_CHANNEL.receiver();
-    loop {
-        let req = config_req_rx.receive().await;
-        match config_manager.exec(req).await {
-            Ok(_) => {}
-            Err(e) => {
-                defmt::error!("config error: {}", e);
-            }
-        }
-    }
-}
+// Removed config_task: configuration manager no longer used
 
 #[embassy_executor::task]
 async fn pd_task(mut pd_service: PowerInput<'static, UCPD1, Irqs, PB6, PB4, DMA2_CH4, DMA2_CH5>) {

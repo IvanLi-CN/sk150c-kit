@@ -19,28 +19,22 @@ cortex-m-rt = "0.7.5"
 
 # Change this import as required for your MCU.
 
-embassy-embedded-hal = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f", features = ["defmt"] }
+embassy-embedded-hal = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f" }
 embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f", features = [
   "arch-cortex-m",
   "executor-thread",
-  "defmt",
 ] }
 embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f" }
 embassy-stm32 = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f", features = [
-  "defmt",
   "time-driver-any",
   "stm32g431cb",
   "memory-x",
   "unstable-pac",
   "exti",
 ] }
-embassy-sync = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f", features = ["defmt"] }
-embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f", features = [
-  "defmt",
-  "defmt-timestamp-uptime",
-  "tick-hz-32_768",
-] }
-embassy-usb = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f", features = ["defmt"] }
+embassy-sync = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f" }
+embassy-usb = { git = "https://github.com/embassy-rs/embassy", rev = "26a8aa9566ec7d2e79f933e577caf23ead20b53f" }
 
 embedded-hal = "1.0.0"
 embedded-hal-02 = { package = "embedded-hal", version = "0.2.7" }
@@ -49,13 +43,34 @@ embedded-hal-bus = "0.3.0"
 embedded-io-async = { version = "0.6.1" }
 embedded-alloc = "0.6.0"
 
-portable-atomic = { version = "1.11.0" }
+portable-atomic = { version = "1.11.1" }
 ryu = "1.0.20"
-static_cell = "2.1.0"
-usbpd = { version = "0.2.1", features = ["defmt"] }
+static_cell = "2.1.1"
+## Only needed for firmware (not host tests)
+[target.'cfg(not(test))'.dependencies]
+usbpd = "1.1.3"
+usbpd-traits = "1.1.0"
 
-uom = { version = "0.36.0", default-features = false, features = ["si"] }
+## Using upstream usbpd from crates.io
+
+uom = { version = "0.36.0", default-features = false, features = ["si", "f64"] }
 libm = "0.2.15"
+
+
+[dev-dependencies]
+# Async test runtime for host-side unit tests
+tokio = { version = "1", features = ["rt", "macros", "time"] }
+critical-section = { version = "1", features = ["std"] }
+
+[lib]
+name = "sk150c_kit"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sk150c-kit"
+path = "src/main.rs"
+test = false
+bench = false
 
 
 # cargo build/run

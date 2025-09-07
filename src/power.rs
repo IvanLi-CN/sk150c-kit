@@ -14,7 +14,7 @@ use embassy_sync::{
 };
 use embassy_time::{Duration, Timer, with_timeout};
 
-use usbpd::{Driver as SinkDriver, sink::policy_engine::Sink};
+use usbpd::sink::policy_engine::Sink;
 use usbpd::{
     protocol_layer::message::{
         pdo::SourceCapabilities,
@@ -23,6 +23,7 @@ use usbpd::{
     sink::{self, device_policy_manager::DevicePolicyManager},
     timers::Timer as SinkTimer,
 };
+use usbpd_traits::{Driver as SinkDriver, DriverRxError, DriverTxError};
 
 #[derive(Debug, Format)]
 enum CableOrientation {
@@ -47,27 +48,27 @@ impl<T: Instance> SinkDriver for UcpdSinkDriver<'_, T> {
         // The sink policy engine is only running when attached. Therefore VBus is present.
     }
 
-    async fn receive(&mut self, buffer: &mut [u8]) -> Result<usize, usbpd::DriverRxError> {
+    async fn receive(&mut self, buffer: &mut [u8]) -> Result<usize, DriverRxError> {
         self.pd_phy.receive(buffer).await.map_err(|err| match err {
-            ucpd::RxError::Crc | ucpd::RxError::Overrun => usbpd::DriverRxError::Discarded,
-            ucpd::RxError::HardReset => usbpd::DriverRxError::HardReset,
+            ucpd::RxError::Crc | ucpd::RxError::Overrun => DriverRxError::Discarded,
+            ucpd::RxError::HardReset => DriverRxError::HardReset,
         })
     }
 
-    async fn transmit(&mut self, data: &[u8]) -> Result<(), usbpd::DriverTxError> {
+    async fn transmit(&mut self, data: &[u8]) -> Result<(), DriverTxError> {
         self.pd_phy.transmit(data).await.map_err(|err| match err {
-            ucpd::TxError::Discarded => usbpd::DriverTxError::Discarded,
-            ucpd::TxError::HardReset => usbpd::DriverTxError::HardReset,
+            ucpd::TxError::Discarded => DriverTxError::Discarded,
+            ucpd::TxError::HardReset => DriverTxError::HardReset,
         })
     }
 
-    async fn transmit_hard_reset(&mut self) -> Result<(), usbpd::DriverTxError> {
+    async fn transmit_hard_reset(&mut self) -> Result<(), DriverTxError> {
         self.pd_phy
             .transmit_hardreset()
             .await
             .map_err(|err| match err {
-                ucpd::TxError::Discarded => usbpd::DriverTxError::Discarded,
-                ucpd::TxError::HardReset => usbpd::DriverTxError::HardReset,
+                ucpd::TxError::Discarded => DriverTxError::Discarded,
+                ucpd::TxError::HardReset => DriverTxError::HardReset,
             })
     }
 }
@@ -324,9 +325,15 @@ where
 
             match select(select(sink.run(), wait_detached(&mut cc_phy)), pd_timeout).await {
                 Either::First(Either::First(result)) => {
-                    warn!("Sink loop broken with result: {}", result);
+                    warn!(
+                        "Sink loop broken with result: {:?}",
+                        defmt::Debug2Format(&result)
+                    );
                     if let Err(err) = result {
-                        warn!("PD communication error, will retry: {}", err);
+                        warn!(
+                            "PD communication error, will retry: {:?}",
+                            defmt::Debug2Format(&err)
+                        );
                         self.pd_sink_error_tx.send(Arc::new(err)).await;
                         // For non-critical errors, continue trying
                         continue;
